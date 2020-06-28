@@ -10,10 +10,31 @@
 #define ERROR_MISSING_ARGS "Missing arguments"
 #define ERROR_DIGITS_A_TOO_LONG "Digits in Nano big number A too long"
 #define ERROR_DIGITS_B_TOO_LONG "Digits in Nano big number B too long"
+#define ERROR_TOO_MANY_ARGUMENTS "Too many arguments"
 //27 de junho de 2019 15:43
 
 #define F_BUF_CHAR (size_t)512
 static char _buf[F_BUF_CHAR];
+
+void gen_rand_no_entropy(void *output, size_t output_len)
+{
+   FILE *f;
+   size_t rnd_sz, left;
+
+   if (!(f=fopen("/dev/urandom", "r")))
+      return;
+
+   rnd_sz=0;
+   left=output_len;
+
+   while ((rnd_sz+=fread(output+rnd_sz, 1, left, f))<output_len)
+      left-=rnd_sz;
+
+   fclose(f);
+
+   return;
+
+}
 
 void memory_flush() {
    memset(_buf, 0, sizeof(_buf));
@@ -21,7 +42,18 @@ void memory_flush() {
 
 napi_value nanojs_license(napi_env env, napi_callback_info info)
 {
-   napi_value license;
+   napi_value license, argv;
+   size_t argc=1;
+
+   if (napi_get_cb_info(env, info, &argc, &argv, NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc) {
+      napi_throw_error(env, "1", ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
 
    if (napi_create_string_utf8(env, (const char *)LICENSE, sizeof(LICENSE)-1, &license)!=napi_ok) {
       napi_throw_error(env, PARSE_ERROR, "Fail on parse LICENSE");
@@ -35,20 +67,36 @@ napi_value nanojs_license(napi_env env, napi_callback_info info)
 napi_value nanojs_wallet_to_public_key(napi_env env, napi_callback_info info) 
 {
    int err;
-   size_t argc=1;
+   size_t nano_wallet_sz, argc=1;
    napi_value argv, res;
    char nano_wallet[MAX_STR_NANO_CHAR];
-   size_t nano_wallet_sz;
 
    if (napi_get_cb_info(env, info, &argc, &argv, NULL, NULL)!=napi_ok) {
       napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
       return NULL;
    }
 
-   if (napi_get_value_string_utf8(env, argv, nano_wallet, sizeof(nano_wallet), &nano_wallet_sz)!=napi_ok) {
+   if (argc>1) {
+      napi_throw_error(env, "1", ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (!argc) {
+      napi_throw_error(env, "2", "Missing Nano/Xrb Wallet");
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv, nano_wallet, sizeof(nano_wallet)+1, &nano_wallet_sz)!=napi_ok) {
       napi_throw_error(env, "102", "Can't parse public key to myNanoEmbedded C library");
       return NULL;
    }
+
+   if (nano_wallet_sz==MAX_STR_NANO_CHAR) {
+      napi_throw_error(env, "123", "String excess greater than MAX_STR_NANO_CHAR");
+      return NULL;
+   }
+
+   nano_wallet[nano_wallet_sz]=0;
 
    if ((err=nano_base_32_2_hex((uint8_t *)(_buf+128), nano_wallet))) {
       sprintf(_buf, "%d", err);
@@ -171,6 +219,11 @@ napi_value nanojs_add_sub(napi_env env, napi_callback_info info)
       return NULL;
    }
 
+   if (argc>3) {
+      napi_throw_error(env, "1", ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
    if (argc==3) {
       if (napi_get_value_uint32(env, argv[2], &add_sub_type)!=napi_ok) {
          napi_throw_error(env, "115", "Wrong Nano Big number ADD/SUB mode");
@@ -179,9 +232,7 @@ napi_value nanojs_add_sub(napi_env env, napi_callback_info info)
    } else
       add_sub_type=F_NANO_RES_REAL_STRING|F_NANO_ADD_A_B|F_NANO_A_REAL_STRING|F_NANO_B_REAL_STRING;
 
-   A=_buf;
-
-   if (napi_get_value_string_utf8(env, argv[0], A, F_RAW_STR_MAX_SZ, &sz_tmp)!=napi_ok) {
+   if (napi_get_value_string_utf8(env, argv[0], A=_buf, F_RAW_STR_MAX_SZ+1, &sz_tmp)!=napi_ok) {
       napi_throw_error(env, "116", "Can't parse Nano Big Number A value");
       return NULL;
    }
@@ -193,7 +244,7 @@ napi_value nanojs_add_sub(napi_env env, napi_callback_info info)
 
    A[sz_tmp]=0;
 
-   if (napi_get_value_string_utf8(env, argv[1], B=(A+F_RAW_STR_MAX_SZ), F_RAW_STR_MAX_SZ, &sz_tmp)!=napi_ok) {
+   if (napi_get_value_string_utf8(env, argv[1], B=(A+F_RAW_STR_MAX_SZ), F_RAW_STR_MAX_SZ+1, &sz_tmp)!=napi_ok) {
       napi_throw_error(env, "118", "Can't parse Nano Big Number B value");
       return NULL;
    }
@@ -202,6 +253,8 @@ napi_value nanojs_add_sub(napi_env env, napi_callback_info info)
       napi_throw_error(env, "119", ERROR_DIGITS_B_TOO_LONG);
       return NULL;
    }
+
+   B[sz_tmp]=0;
 
    Result=(B+F_RAW_STR_MAX_SZ);
    Tmp1=(Result+F_RAW_STR_MAX_SZ);
@@ -246,6 +299,89 @@ napi_value nanojs_add_sub(napi_env env, napi_callback_info info)
 
 }
 
+napi_value nanojs_pow(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[3], res;
+   size_t argc=3, sz_tmp;
+   char *hash;
+   uint64_t threshold;
+   int32_t n_thr;
+   bool lossless;
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc<2) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (argc>3) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc==2)
+      threshold=F_DEFAULT_THRESHOLD;
+   else {
+      if (napi_get_value_bigint_uint64(env, argv[2], &threshold, &lossless)!=napi_ok) {
+         napi_throw_error(env, "124", "Error when parsing PoW threshold");
+         return NULL;
+      }
+
+      if (!lossless) {
+         napi_throw_error(env, "125", "Precision lossing threshold in big int");
+         return NULL;
+      }
+   }
+
+   if (napi_get_value_int32(env, argv[1], &n_thr)!=napi_ok) {
+      napi_throw_error(env, "126", "Error when parsing CPU number of threads");
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[0], _buf, sizeof(_buf), &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "127", "Can't parse Nano Big Number B value");
+      return NULL;
+   }
+
+   if (sz_tmp!=64) {
+      sprintf(_buf, "Wrong hash size %lu to calculate PoW", (unsigned long int)sz_tmp);
+      napi_throw_error(env, "128", _buf);
+      return NULL;
+   }
+
+   _buf[64]=0;
+
+   if ((err=f_str_to_hex((uint8_t *)(_buf+128), _buf))) {
+      sprintf((_buf+128), "Can't convert hash \"%s\" to binary", _buf);
+      napi_throw_error(env, "129", (_buf+128));
+      return NULL;
+   }
+
+   f_random_attach(gen_rand_no_entropy);
+
+   if ((err=f_nano_pow((uint64_t *)_buf, (unsigned char *)(_buf+128), (const uint64_t)threshold, (int)n_thr))) {
+      sprintf(_buf, "%d", err);
+      napi_throw_error(env, _buf, "Internal error in myNanoEmbedded C function 'f_nano_pow'");
+   }
+
+   f_random_detach();
+
+   if (err)
+      return NULL;
+
+   if (napi_create_bigint_uint64(env, (uint64_t)*((uint64_t *)_buf), &res)!=napi_ok) {
+      napi_throw_error(env, "130", "Can't parse result threshold JavaScript environment");
+      return NULL;
+   }
+
+   return res;
+}
+
 typedef napi_value (*my_nano_fn)(napi_env, napi_callback_info);
 typedef struct my_nano_js_fn_call_t {
    const char *function_name;
@@ -257,17 +393,23 @@ typedef struct constant_uint32_t_t {
    uint32_t constant;
 } MY_NANO_JS_CONST_UINT32_T;
 
+typedef struct constant_uint64_t_t {
+   const char *constant_name;
+   uint64_t constant;
+} MY_NANO_JS_CONST_UINT64_T;
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
    {"nanojs_wallet_to_public_key", nanojs_wallet_to_public_key},
    {"nanojs_seed_to_nano_wallet", nanojs_seed_to_nano_wallet},
    {"nanojs_add_sub", nanojs_add_sub},
+   {"nanojs_pow", nanojs_pow},
    {NULL, NULL}
 
 };
 
-MY_NANO_JS_CONST_UINT32_T NANO_ADD_SUB_CONST[] = {
+MY_NANO_JS_CONST_UINT32_T NANO_UINT32_CONST[] = {
 
    {"NANO_ADD_A_B", F_NANO_ADD_A_B},
    {"NANO_SUB_A_B", F_NANO_SUB_A_B},
@@ -280,6 +422,13 @@ MY_NANO_JS_CONST_UINT32_T NANO_ADD_SUB_CONST[] = {
    {"NANO_B_RAW_128", F_NANO_B_RAW_128},
    {"NANO_B_RAW_STRING", F_NANO_B_RAW_STRING},
    {"NANO_B_REAL_STRING", F_NANO_B_REAL_STRING},
+   {NULL, 0}
+
+};
+
+MY_NANO_JS_CONST_UINT64_T NANO_CONST_UINT64[] = {
+
+   {"DEFAULT_THRESHOLD", F_DEFAULT_THRESHOLD},
    {NULL, 0}
 
 };
@@ -334,6 +483,31 @@ int add_uint32_constant_util(napi_env env, napi_value exports, MY_NANO_JS_CONST_
    return 0;
 }
 
+int add_uint64_constant_util(napi_env env, napi_value exports, MY_NANO_JS_CONST_UINT64_T *uint64_t_constant)
+{
+
+   napi_value const_value;
+
+   while (uint64_t_constant->constant_name) {
+
+      if (napi_create_bigint_uint64(env, uint64_t_constant->constant, &const_value)!=napi_ok) {
+         napi_throw_error(env, ERROR_CONST_NUM, ERROR_PARSE_CONST);
+         return 400;
+      }
+
+      if (napi_set_named_property(env, exports, uint64_t_constant->constant_name, const_value)!=napi_ok) {
+         sprintf(_buf, "Unable to populate constant uint64 \"%s\"", uint64_t_constant->constant_name);
+         napi_throw_error(env, "401", (const char *)_buf);
+         return 401;
+      }
+
+      uint64_t_constant++;
+
+   }
+   return 0;
+
+}
+
 napi_value Init(napi_env env, napi_value exports)
 {
    napi_value fn;
@@ -341,7 +515,10 @@ napi_value Init(napi_env env, napi_value exports)
    if (add_nano_function_util(env, exports, NANO_JS_FUNCTIONS))
       return NULL;
 
-   if (add_uint32_constant_util(env, exports, NANO_ADD_SUB_CONST))
+   if (add_uint32_constant_util(env, exports, NANO_UINT32_CONST))
+      return NULL;
+
+   if (add_uint64_constant_util(env, exports, NANO_CONST_UINT64))
       return NULL;
 
    return exports;

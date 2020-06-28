@@ -7,6 +7,9 @@
 #define ERROR_PARSE_CONST "Unable to INIT constant"
 #define ERROR_CONST_NUM "200"
 #define PARSE_ERROR "101"
+#define ERROR_MISSING_ARGS "Missing arguments"
+#define ERROR_DIGITS_A_TOO_LONG "Digits in Nano big number A too long"
+#define ERROR_DIGITS_B_TOO_LONG "Digits in Nano big number B too long"
 //27 de junho de 2019 15:43
 
 #define F_BUF_CHAR (size_t)512
@@ -150,6 +153,99 @@ nanojs_seed_to_nano_wallet_EXIT1:
 
 }
 
+napi_value nanojs_add_sub(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[3], res;
+   size_t argc=3, sz_tmp;
+   uint32_t add_sub_type;
+   char *A, *B, *Result, *Tmp1, *Tmp2;
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc<2) {
+      napi_throw_error(env, "114", ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (argc==3) {
+      if (napi_get_value_uint32(env, argv[2], &add_sub_type)!=napi_ok) {
+         napi_throw_error(env, "115", "Wrong Nano Big number ADD/SUB mode");
+         return NULL;
+      }
+   } else
+      add_sub_type=F_NANO_RES_REAL_STRING|F_NANO_ADD_A_B|F_NANO_A_REAL_STRING|F_NANO_B_REAL_STRING;
+
+   A=_buf;
+
+   if (napi_get_value_string_utf8(env, argv[0], A, F_RAW_STR_MAX_SZ, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "116", "Can't parse Nano Big Number A value");
+      return NULL;
+   }
+
+   if (sz_tmp==F_RAW_STR_MAX_SZ) {
+      napi_throw_error(env, "117", ERROR_DIGITS_A_TOO_LONG);
+      return NULL;
+   }
+
+   A[sz_tmp]=0;
+
+   if (napi_get_value_string_utf8(env, argv[1], B=(A+F_RAW_STR_MAX_SZ), F_RAW_STR_MAX_SZ, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "118", "Can't parse Nano Big Number B value");
+      return NULL;
+   }
+
+   if (sz_tmp==F_RAW_STR_MAX_SZ) {
+      napi_throw_error(env, "119", ERROR_DIGITS_B_TOO_LONG);
+      return NULL;
+   }
+
+   Result=(B+F_RAW_STR_MAX_SZ);
+   Tmp1=(Result+F_RAW_STR_MAX_SZ);
+   Tmp2=(Tmp1+F_RAW_STR_MAX_SZ);
+
+   if (add_sub_type&F_NANO_A_RAW_128) {
+      if ((err=f_str_to_hex((uint8_t *)Tmp1, A))) {
+         napi_throw_error(env, "120", "Can't parse Nano Big Number A to binary");
+         return NULL;
+      }
+
+      A=Tmp1;
+   }
+
+   if (add_sub_type&F_NANO_B_RAW_128) {
+      if ((err=f_str_to_hex((uint8_t *)Tmp2, B))) {
+         napi_throw_error(env, "121", "Can't parse Nano Big Number B to binary");
+         return NULL;
+      }
+
+      B=Tmp2;
+   }
+
+   if ((add_sub_type&(F_NANO_RES_RAW_128|F_NANO_RES_RAW_STRING|F_NANO_RES_REAL_STRING))==0)
+      add_sub_type|=F_NANO_RES_REAL_STRING;
+
+   if ((err=f_nano_add_sub(Result, A, B, add_sub_type))) {
+      sprintf(_buf, "%d", err);
+      napi_throw_error(env, _buf, "Error when ADD/SUB Nano big numbers");
+      return NULL;
+   }
+
+   if (add_sub_type&F_NANO_RES_RAW_128)
+      Result=fhex2strv2(A, (const void *)Result, sizeof(f_uint128_t), 0);
+
+   if (napi_create_string_utf8(env, (const char *)Result, NAPI_AUTO_LENGTH, &res)!=napi_ok) {
+      napi_throw_error(env, "122", "Can't perform result operation");
+      return NULL;
+   }
+
+   return res;
+
+}
+
 typedef napi_value (*my_nano_fn)(napi_env, napi_callback_info);
 typedef struct my_nano_js_fn_call_t {
    const char *function_name;
@@ -166,6 +262,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_license", nanojs_license},
    {"nanojs_wallet_to_public_key", nanojs_wallet_to_public_key},
    {"nanojs_seed_to_nano_wallet", nanojs_seed_to_nano_wallet},
+   {"nanojs_add_sub", nanojs_add_sub},
    {NULL, NULL}
 
 };

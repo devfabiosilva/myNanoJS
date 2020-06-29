@@ -193,6 +193,7 @@ napi_value nanojs_seed_to_nano_wallet(napi_env env, napi_callback_info info)
       goto nanojs_seed_to_nano_wallet_EXIT1;
    }
 
+   memory_flush();
    return res;
 
 nanojs_seed_to_nano_wallet_EXIT1:
@@ -382,6 +383,104 @@ napi_value nanojs_pow(napi_env env, napi_callback_info info)
    return res;
 }
 
+napi_value nanojs_extract_seed_from_brainwallet(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[3], res;
+   size_t argc=3, sz_tmp;
+   uint32_t allow_mode;
+   char *warning_msg, *brainwallet, *salt, *seed;
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc<2) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (argc>3) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc==3) {
+
+      if (napi_get_value_uint32(env, argv[2], &allow_mode)!=napi_ok) {
+         napi_throw_error(env, "131", "Can't get Brainwallet allow mode");
+         return NULL;
+      }
+
+   } else
+      allow_mode=F_BRAIN_WALLET_PERFECT;
+
+   if (napi_get_value_string_utf8(env, argv[0], brainwallet=_buf, (sizeof(_buf)>>1)+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "132", "Can't parse Brainwallet text");
+      return NULL;
+   }
+
+   if (sz_tmp==(sizeof(_buf)>>1)) {
+      napi_throw_error(env, "134", "Brainwallet text too long");
+      goto nanojs_extract_seed_from_brainwallet_EXIT1;
+   }
+
+   brainwallet[sz_tmp]=0;
+
+   if (napi_get_value_string_utf8(env, argv[1], salt=(_buf+(sizeof(_buf)>>1)), (sizeof(_buf)>>1)+1-32, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "135", "Can't parse Salt text");
+      goto nanojs_extract_seed_from_brainwallet_EXIT1;
+   }
+
+   if (sz_tmp==((sizeof(_buf)>>1)-32)) {
+      napi_throw_error(env, "136", "Salt text is too long");
+      goto nanojs_extract_seed_from_brainwallet_EXIT1;
+   }
+
+   salt[sz_tmp]=0;
+
+   if ((err=f_extract_seed_from_brainwallet((uint8_t *)(seed=(_buf+sizeof(_buf)-32)), &warning_msg, allow_mode, (const char *)brainwallet, (const char *)salt))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, 
+         "Error in myNanoEmbedded function 'f_extract_seed_from_brainwallet' %s. Can't extract Nano SEED from brainwallet. Warning message: %s", _buf, warning_msg);
+      napi_throw_error(env, _buf, _buf+128);
+      goto nanojs_extract_seed_from_brainwallet_EXIT1;
+   }
+
+   if (napi_create_object(env, &res)!=napi_ok) {
+      napi_throw_error(env, "137", "myNanoEmbedded C error. Can't create object in 'nanojs_extract_seed_from_brainwallet'");
+      goto nanojs_extract_seed_from_brainwallet_EXIT1;
+   }
+
+   if (napi_create_string_utf8(env, (const char *)f_nano_key_to_str(_buf, (unsigned char *)seed), 64, &argv[0])!=napi_ok) {
+      napi_throw_error(env, "138", "Can't export NANO SEED from Brainwallet");
+      goto  nanojs_extract_seed_from_brainwallet_EXIT1;
+   }
+
+   if (napi_set_named_property(env, res, "seed", argv[0])!=napi_ok) {
+      napi_throw_error(env, "139", "myNanoEmbedded C error. Can't set 'seed' property to 'nanojs_seed_to_nano_wallet'");
+      goto nanojs_extract_seed_from_brainwallet_EXIT1;
+   }
+
+   if (napi_create_string_utf8(env, (const char *)warning_msg, strlen(warning_msg), &argv[1])!=napi_ok) {
+      napi_throw_error(env, "140", "Can't export warning message");
+      goto nanojs_extract_seed_from_brainwallet_EXIT1;
+   }
+
+   if (napi_set_named_property(env, res, "warningMessage", argv[1])!=napi_ok) {
+      napi_throw_error(env, "141", "myNanoEmbedded C error. Can't set 'warningMessage' property to 'nanojs_seed_to_nano_wallet'");
+      goto nanojs_extract_seed_from_brainwallet_EXIT1;
+   }
+
+   memory_flush();
+   return res;
+
+nanojs_extract_seed_from_brainwallet_EXIT1:
+   memory_flush();
+   return NULL;
+}
+
 typedef napi_value (*my_nano_fn)(napi_env, napi_callback_info);
 typedef struct my_nano_js_fn_call_t {
    const char *function_name;
@@ -405,6 +504,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_seed_to_nano_wallet", nanojs_seed_to_nano_wallet},
    {"nanojs_add_sub", nanojs_add_sub},
    {"nanojs_pow", nanojs_pow},
+   {"nanojs_extract_seed_from_brainwallet", nanojs_extract_seed_from_brainwallet},
    {NULL, NULL}
 
 };
@@ -422,6 +522,18 @@ MY_NANO_JS_CONST_UINT32_T NANO_UINT32_CONST[] = {
    {"NANO_B_RAW_128", F_NANO_B_RAW_128},
    {"NANO_B_RAW_STRING", F_NANO_B_RAW_STRING},
    {"NANO_B_REAL_STRING", F_NANO_B_REAL_STRING},
+   {"BRAIN_WALLET_VERY_POOR", F_BRAIN_WALLET_VERY_POOR},
+   {"BRAIN_WALLET_POOR", F_BRAIN_WALLET_POOR},
+   {"BRAIN_WALLET_VERY_BAD", F_BRAIN_WALLET_VERY_BAD},
+   {"BRAIN_WALLET_BAD", F_BRAIN_WALLET_BAD},
+   {"BRAIN_WALLET_VERY_WEAK", F_BRAIN_WALLET_VERY_WEAK},
+   {"BRAIN_WALLET_WEAK", F_BRAIN_WALLET_WEAK},
+   {"BRAIN_WALLET_STILL_WEAK", F_BRAIN_WALLET_STILL_WEAK},
+   {"BRAIN_WALLET_MAYBE_GOOD", F_BRAIN_WALLET_MAYBE_GOOD},
+   {"BRAIN_WALLET_GOOD", F_BRAIN_WALLET_GOOD},
+   {"BRAIN_WALLET_VERY_GOOD", F_BRAIN_WALLET_VERY_GOOD},
+   {"BRAIN_WALLET_NICE", F_BRAIN_WALLET_NICE},
+   {"BRAIN_WALLET_PERFECT", F_BRAIN_WALLET_PERFECT},
    {NULL, 0}
 
 };
@@ -441,7 +553,8 @@ int add_nano_function_util(napi_env env, napi_value exports, MY_NANO_JS_FUNCTION
    while (function->function_name) {
 
       if (napi_create_function(env, NULL, 0, function->fn, NULL, &fn)!=napi_ok) {
-         napi_throw_error(env, "300", "Unable to wrap native function nanojs_license");
+         sprintf(_buf, "Unable to wrap native function \"%s\"", function->function_name);
+         napi_throw_error(env, "300", _buf);
          return 300;
       }
 
@@ -496,7 +609,7 @@ int add_uint64_constant_util(napi_env env, napi_value exports, MY_NANO_JS_CONST_
       }
 
       if (napi_set_named_property(env, exports, uint64_t_constant->constant_name, const_value)!=napi_ok) {
-         sprintf(_buf, "Unable to populate constant uint64 \"%s\"", uint64_t_constant->constant_name);
+         sprintf(_buf, "Unable to populate uint64 constant \"%s\"", uint64_t_constant->constant_name);
          napi_throw_error(env, "401", (const char *)_buf);
          return 401;
       }

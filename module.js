@@ -9,3 +9,17 @@ console.log(MY_NANO_JS.nanojs_pow('de0c84215a6b7429d3d2836f54b6b917c930110313490
 
 console.log(MY_NANO_JS.nanojs_extract_seed_from_brainwallet('Regina caeli laetare, Alleluia, Quia quem meruisti portare, Alleluia, Resurrexit sicut dixit, Alleluia. Ora pro nobis Deum. Alleluia','MyEmailHere+MyPhoneNumberHere+MyIdHere@124+AndEtcToSaltWholeMessageToAvoidBruteForceAttack;)'));
 
+A=MY_NANO_JS.nanojs_create_block(
+'nano_1brainb3zz81wmhxndsbrjb94hx3fhr1fyydmg6iresyk76f3k7y7jiazoji',
+null,
+'nano_1xckpezrhg56nuokqh6t1stjca67h37jmrp9qnejjkfgimx1msm9ehuaieuq',
+'0',
+MY_NANO_JS.BALANCE_REAL_STRING,
+'5',
+MY_NANO_JS.VALUE_SEND_RECEIVE_REAL_STRING,
+'2A435EA809381A15A743C57DBF2E7BB06371AEA75792F9416F357C4C1A19AE3F',
+MY_NANO_JS.VALUE_TO_RECEIVE
+);
+
+console.log(A);
+

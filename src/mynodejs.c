@@ -11,6 +11,16 @@
 #define ERROR_DIGITS_A_TOO_LONG "Digits in Nano big number A too long"
 #define ERROR_DIGITS_B_TOO_LONG "Digits in Nano big number B too long"
 #define ERROR_TOO_MANY_ARGUMENTS "Too many arguments"
+#define ERROR_ADD_SUB_BIG_NUMBERS "Error when ADD/SUB Nano big numbers"
+
+#define VALUE_TO_SEND F_NANO_SUB_A_B
+#define VALUE_TO_RECEIVE F_NANO_ADD_A_B
+#define BALANCE_RAW_128 F_NANO_A_RAW_128
+#define BALANCE_REAL_STRING F_NANO_A_REAL_STRING
+#define BALANCE_RAW_STRING F_NANO_A_RAW_STRING
+#define VALUE_SEND_RECEIVE_RAW_128 F_NANO_B_RAW_128
+#define VALUE_SEND_RECEIVE_REAL_STRING F_NANO_B_REAL_STRING
+#define VALUE_SEND_RECEIVE_RAW_STRING F_NANO_B_RAW_STRING
 //27 de junho de 2019 15:43
 
 #define F_BUF_CHAR (size_t)512
@@ -38,6 +48,38 @@ void gen_rand_no_entropy(void *output, size_t output_len)
 
 void memory_flush() {
    memset(_buf, 0, sizeof(_buf));
+}
+
+int extract_public_key_from_wallet_or_hex_str_util(int *prefix, uint8_t *dest, char *wallet_or_pk, size_t wallet_or_pk_sz)
+{
+// if prefix!=NULL then prefix is parsed
+// Internal use only !!!
+// *wallet_or_pk is manipulated as well
+   int err;
+   uint8_t msg[PUB_KEY_EXTENDED_MAX_LEN];
+
+   if (!wallet_or_pk_sz)
+      return 50;
+
+   if (wallet_or_pk_sz>(MAX_STR_NANO_CHAR-1))
+      return 51;
+
+   wallet_or_pk[wallet_or_pk_sz]=0;
+
+   if (prefix)
+      *prefix=is_nano_prefix((const char *)wallet_or_pk, XRB_PREFIX);
+
+   if ((err=nano_base_32_2_hex(msg, (char *)wallet_or_pk))) {
+
+      if (wallet_or_pk_sz!=64)
+         return err;
+
+      return f_str_to_hex(dest, (char *)wallet_or_pk);
+
+   }
+
+   memcpy(dest, msg, 32);
+   return 0;
 }
 
 napi_value nanojs_license(napi_env env, napi_callback_info info)
@@ -284,7 +326,7 @@ napi_value nanojs_add_sub(napi_env env, napi_callback_info info)
 
    if ((err=f_nano_add_sub(Result, A, B, add_sub_type))) {
       sprintf(_buf, "%d", err);
-      napi_throw_error(env, _buf, "Error when ADD/SUB Nano big numbers");
+      napi_throw_error(env, _buf, ERROR_ADD_SUB_BIG_NUMBERS);
       return NULL;
    }
 
@@ -334,7 +376,7 @@ napi_value nanojs_pow(napi_env env, napi_callback_info info)
       }
 
       if (!lossless) {
-         napi_throw_error(env, "125", "Precision lossing threshold in big int");
+         napi_throw_error(env, "125", "Precision loss in threshold big int");
          return NULL;
       }
    }
@@ -481,6 +523,228 @@ nanojs_extract_seed_from_brainwallet_EXIT1:
    return NULL;
 }
 
+//account 0
+//previous 1
+//representative 2
+//balance 3
+//balance_type 4
+//value_to_send_or_receive 5
+//value_to_send_or_receive_type 6
+//link or destination address 7
+//direction 8
+napi_value nanojs_create_block(napi_env env, napi_callback_info info)
+{
+   int err, xrb_prefix;
+   napi_value argv[9], res;
+   size_t argc=9, sz_tmp;
+   uint8_t *p;
+   char *Balance, *Value_To_Send_Rec;
+   uint32_t type, type_tmp;
+   F_BLOCK_TRANSFER nano_block;
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>9) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<9) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[0], _buf, sizeof(_buf), &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "142", "Can't parse account to Nano block");
+      return NULL;
+   }
+
+   memset(&nano_block, 0, sizeof(nano_block));
+
+   if ((err=extract_public_key_from_wallet_or_hex_str_util(&xrb_prefix, nano_block.account, _buf, sz_tmp))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, "Can't write Nano Wallet/Public key to block %s", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
+
+   if (xrb_prefix)
+      nano_block.prefixes=SENDER_XRB;
+
+   if (napi_get_value_string_utf8(env, argv[1], _buf+128, (sizeof(_buf)-128), &sz_tmp)==napi_ok) {
+      if (sz_tmp==64) {
+         if ((err=f_str_to_hex((uint8_t *)_buf, _buf+128))) {
+            napi_throw_error(env, "144", "Error when parsing previous block to binary");
+            return NULL;
+         }
+
+         p=(uint8_t *)_buf;
+      } else if (sz_tmp) {
+         napi_throw_error(env, "143", "Invalid previous block size");
+         return NULL;
+      } else
+         p=nano_block.account;
+
+   } else {
+      if (napi_get_null(env, &argv[1])!=napi_ok) {
+         napi_throw_error(env, "145", "Error when parsing previous account to block");
+         return NULL;
+      }
+
+      p=nano_block.account;
+   }
+
+   memcpy(nano_block.previous, p, 32);
+
+   if (napi_get_value_string_utf8(env, argv[2], _buf, sizeof(_buf), &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "146", "Can't parse representative to Nano block");
+      return NULL;
+   }
+
+   if ((err=extract_public_key_from_wallet_or_hex_str_util(&xrb_prefix, nano_block.representative, _buf, sz_tmp))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, "Can't write Representative Nano Wallet/Public key to block %s", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
+
+   if (xrb_prefix)
+      nano_block.prefixes|=REP_XRB;
+
+   if (napi_get_value_string_utf8(env, argv[3], Balance=_buf, F_RAW_STR_MAX_SZ+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "147", "Can't parse Balance Number value");
+      return NULL;
+   }
+
+   if (sz_tmp==F_RAW_STR_MAX_SZ) {
+      napi_throw_error(env, "148", "Balance digits are too long");
+      return NULL;
+   }
+
+   Balance[sz_tmp]=0;
+
+   if (napi_get_value_uint32(env, argv[4], &type_tmp)!=napi_ok) {
+      napi_throw_error(env, "149", "Can't determine Balance Big number type");
+      return NULL;
+   }
+
+   if (type_tmp&BALANCE_RAW_128) {
+      if ((err=f_str_to_hex(p=(uint8_t *)(_buf+2*F_RAW_STR_MAX_SZ), Balance))) {
+         napi_throw_error(env, "157", "Can't parse Balance to binary");
+         return NULL;
+      }
+
+      Balance=(char *)p;
+   }
+
+   type=type_tmp;
+
+   if (napi_get_value_string_utf8(env, argv[5], Value_To_Send_Rec=(_buf+F_RAW_STR_MAX_SZ), F_RAW_STR_MAX_SZ+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "150", "Can't parse Value to send/Receive Big Number value");
+      return NULL;
+   }
+
+   if (sz_tmp==F_RAW_STR_MAX_SZ) {
+      napi_throw_error(env, "151", "Value to send/receive digits are too long");
+      return NULL;
+   }
+
+   Value_To_Send_Rec[sz_tmp]=0;
+
+   if (napi_get_value_uint32(env, argv[6], &type_tmp)!=napi_ok) {
+      napi_throw_error(env, "152", "Can't determine Value to send/receive Big number type");
+      return NULL;
+   }
+
+   if (type_tmp&VALUE_SEND_RECEIVE_RAW_128) {
+      if ((err=f_str_to_hex(p=(uint8_t *)(_buf+3*F_RAW_STR_MAX_SZ), Value_To_Send_Rec))) {
+         napi_throw_error(env, "157", "Can't parse Value to Send/Receive to binary");
+         return NULL;
+      }
+
+      Value_To_Send_Rec=(char *)p;
+   }
+
+   type|=type_tmp;
+   type_tmp|=F_NANO_A_RAW_128;
+
+   if ((err=f_nano_value_compare_value(memset(_buf+256, 0, sizeof(f_uint128_t)), Value_To_Send_Rec, &type_tmp))) {
+      napi_throw_error(env, "158", "Can't compare Value to send big numbers");
+      return NULL;
+   }
+
+   if (type_tmp&F_NANO_COMPARE_EQ) {
+      napi_throw_error(env, "159", "You cannot send or receive 0 amount");
+      return NULL;
+   }
+
+   if (napi_get_value_uint32(env, argv[8], &type_tmp)!=napi_ok) {
+      napi_throw_error(env, "153", "Can't determine direction (Send or Receive)");
+      return NULL;
+   }
+
+   type|=type_tmp;
+
+   if (memcmp(nano_block.account, nano_block.previous, 32)==0) {
+      if (type_tmp&VALUE_TO_SEND) {
+         napi_throw_error(env, "160", "You cannot send amount in genesis block");
+         return NULL;
+      }
+
+      type_tmp=((type&(BALANCE_RAW_128|BALANCE_REAL_STRING|BALANCE_RAW_STRING))|F_NANO_B_RAW_128);
+
+      if ((err=f_nano_value_compare_value(Balance, _buf+256, &type_tmp))) {
+         napi_throw_error(env, "158", "Can't compare Balance big number");
+         return NULL;
+      }
+
+      if (type_tmp&F_NANO_COMPARE_GT) {
+         napi_throw_error(env, "161", "Genesis block should have 0 amount");
+         return NULL;
+      }
+   }
+
+   if ((err=f_nano_add_sub(nano_block.balance, Balance, Value_To_Send_Rec, F_NANO_RES_RAW_128|type))) {
+      sprintf(_buf, "%d", err);
+      napi_throw_error(env, _buf, ERROR_ADD_SUB_BIG_NUMBERS);
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[7], _buf, sizeof(_buf), &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "154", "Can't parse link to Nano block");
+      return NULL;
+   }
+
+   if ((err=extract_public_key_from_wallet_or_hex_str_util(&xrb_prefix, nano_block.link, _buf, sz_tmp))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, "Can't write link to block %s", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
+
+   if (xrb_prefix)
+      nano_block.prefixes|=DEST_XRB;
+
+   nano_block.preamble[31]=0x06;
+
+   if (napi_create_arraybuffer(env, sizeof(nano_block), &p, &res)!=napi_ok) {
+      napi_throw_error(env, "155", "Can't create array buffer to store Nano Block");
+      return NULL;
+   }
+
+   memcpy(p, &nano_block, sizeof(nano_block));
+
+   if (napi_create_external_arraybuffer(env, p, sizeof(nano_block), NULL, NULL, &res)!=napi_ok) {
+      napi_throw_error(env, "156", "Can't copy array buffer to store Nano Block in Javascript");
+      return NULL;
+   }
+
+   return res;
+}
+
 typedef napi_value (*my_nano_fn)(napi_env, napi_callback_info);
 typedef struct my_nano_js_fn_call_t {
    const char *function_name;
@@ -505,6 +769,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_add_sub", nanojs_add_sub},
    {"nanojs_pow", nanojs_pow},
    {"nanojs_extract_seed_from_brainwallet", nanojs_extract_seed_from_brainwallet},
+   {"nanojs_create_block", nanojs_create_block},
    {NULL, NULL}
 
 };
@@ -534,6 +799,14 @@ MY_NANO_JS_CONST_UINT32_T NANO_UINT32_CONST[] = {
    {"BRAIN_WALLET_VERY_GOOD", F_BRAIN_WALLET_VERY_GOOD},
    {"BRAIN_WALLET_NICE", F_BRAIN_WALLET_NICE},
    {"BRAIN_WALLET_PERFECT", F_BRAIN_WALLET_PERFECT},
+   {"VALUE_TO_SEND", VALUE_TO_SEND},
+   {"VALUE_TO_RECEIVE", VALUE_TO_RECEIVE},
+   {"BALANCE_RAW_128", BALANCE_RAW_128},
+   {"BALANCE_REAL_STRING", BALANCE_REAL_STRING},
+   {"BALANCE_RAW_STRING", BALANCE_RAW_STRING},
+   {"VALUE_SEND_RECEIVE_RAW_128", VALUE_SEND_RECEIVE_RAW_128},
+   {"VALUE_SEND_RECEIVE_REAL_STRING", VALUE_SEND_RECEIVE_REAL_STRING},
+   {"VALUE_SEND_RECEIVE_RAW_STRING", VALUE_SEND_RECEIVE_RAW_STRING},
    {NULL, 0}
 
 };

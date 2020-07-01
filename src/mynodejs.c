@@ -1,5 +1,5 @@
 #define F_IA64
-#define NAPI_VERSION 3
+#define NAPI_EXPERIMENTAL
 #include <node_api.h>
 #include "f_nano_crypto_util.h"
 
@@ -12,6 +12,8 @@
 #define ERROR_DIGITS_B_TOO_LONG "Digits in Nano big number B too long"
 #define ERROR_TOO_MANY_ARGUMENTS "Too many arguments"
 #define ERROR_ADD_SUB_BIG_NUMBERS "Error when ADD/SUB Nano big numbers"
+#define ERROR_UNABLE_TO_CREATE_ATTRIBUTE "Unable to create attribute"
+#define ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK "Can't add attribute to Nano in JSON block"
 
 #define VALUE_TO_SEND F_NANO_SUB_A_B
 #define VALUE_TO_RECEIVE F_NANO_ADD_A_B
@@ -347,7 +349,6 @@ napi_value nanojs_pow(napi_env env, napi_callback_info info)
    int err;
    napi_value argv[3], res;
    size_t argc=3, sz_tmp;
-   char *hash;
    uint64_t threshold;
    int32_t n_thr;
    bool lossless;
@@ -505,7 +506,7 @@ napi_value nanojs_extract_seed_from_brainwallet(napi_env env, napi_callback_info
       goto nanojs_extract_seed_from_brainwallet_EXIT1;
    }
 
-   if (napi_create_string_utf8(env, (const char *)warning_msg, strlen(warning_msg), &argv[1])!=napi_ok) {
+   if (napi_create_string_utf8(env, (const char *)warning_msg, NAPI_AUTO_LENGTH, &argv[1])!=napi_ok) {
       napi_throw_error(env, "140", "Can't export warning message");
       goto nanojs_extract_seed_from_brainwallet_EXIT1;
    }
@@ -730,7 +731,7 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
 
    nano_block.preamble[31]=0x06;
 
-   if (napi_create_arraybuffer(env, sizeof(nano_block), &p, &res)!=napi_ok) {
+   if (napi_create_arraybuffer(env, sizeof(nano_block), (void **)&p, &res)!=napi_ok) {
       napi_throw_error(env, "155", "Can't create array buffer to store Nano Block");
       return NULL;
    }
@@ -739,6 +740,194 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
 
    if (napi_create_external_arraybuffer(env, p, sizeof(nano_block), NULL, NULL, &res)!=napi_ok) {
       napi_throw_error(env, "156", "Can't copy array buffer to store Nano Block in Javascript");
+      return NULL;
+   }
+
+   return res;
+}
+
+napi_value nanojs_block_to_JSON(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv, block, res;
+   size_t argc=1, sz_tmp;
+   void *buffer;
+   F_BLOCK_TRANSFER nano_block;
+
+   if (napi_get_cb_info(env, info, &argc, &argv, NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_arraybuffer_info(env, argv, &buffer, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "162", "Can't read Nano block");
+      return NULL;
+   }
+
+   if (sz_tmp!=sizeof(F_BLOCK_TRANSFER)) {
+      napi_throw_error(env, "163", "Wrong Nano block size");
+      return NULL;
+   }
+
+   if (!f_nano_is_valid_block((F_BLOCK_TRANSFER *)buffer)) {
+      napi_throw_error(env, "164", "Invalid Nano Block");
+      return NULL;
+   }
+
+   memcpy(&nano_block, buffer, sizeof(nano_block));
+
+   if (napi_create_object(env, &block)!=napi_ok) {
+      napi_throw_error(env, "165", "Can't create JSON block");
+      return NULL;
+   }
+
+   if (napi_create_string_utf8(env, "state", NAPI_AUTO_LENGTH, &argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_UNABLE_TO_CREATE_ATTRIBUTE);
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, block, "type", argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
+      return NULL;
+   }
+
+   if ((err=pk_to_wallet(_buf, (nano_block.prefixes&SENDER_XRB)?XRB_PREFIX:NANO_PREFIX, memcpy(_buf+128, nano_block.account, 32)))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, "Can't convert public key account to Base 32 Nano Wallet %s", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
+
+   if (napi_create_string_utf8(env, (const char *)_buf, NAPI_AUTO_LENGTH, &argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_UNABLE_TO_CREATE_ATTRIBUTE);
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, block, "account", argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
+      return NULL;
+   }
+
+   if (napi_create_string_utf8(env, (const char *)f_nano_key_to_str(_buf, (unsigned char *)nano_block.previous), NAPI_AUTO_LENGTH, &argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_UNABLE_TO_CREATE_ATTRIBUTE);
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, block, "previous", argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
+      return NULL;
+   }
+
+   if ((err=pk_to_wallet(_buf, (nano_block.prefixes&REP_XRB)?XRB_PREFIX:NANO_PREFIX, memcpy(_buf+128, nano_block.representative, 32)))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, "Can't convert public key representative to Base 32 Nano Wallet %s", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
+
+   if (napi_create_string_utf8(env, (const char *)_buf, NAPI_AUTO_LENGTH, &argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_UNABLE_TO_CREATE_ATTRIBUTE);
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, block, "representative", argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
+      return NULL;
+   }
+
+   if ((err=f_nano_balance_to_str(_buf, sizeof(_buf), &sz_tmp, nano_block.balance))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, "Can't parse Nano RAW to string %s", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
+
+   if (napi_create_string_utf8(env, (const char *)_buf, sz_tmp, &argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_UNABLE_TO_CREATE_ATTRIBUTE);
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, block, "balance", argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
+      return NULL;
+   }
+
+   if (napi_create_string_utf8(env, (const char *)f_nano_key_to_str(_buf, (unsigned char *)nano_block.link), NAPI_AUTO_LENGTH, &argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_UNABLE_TO_CREATE_ATTRIBUTE);
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, block, "link", argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
+      return NULL;
+   }
+
+   if ((err=pk_to_wallet(_buf, (nano_block.prefixes&DEST_XRB)?XRB_PREFIX:NANO_PREFIX, memcpy(_buf+128, nano_block.link, 32)))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, "Can't convert link to Base 32 Nano Wallet %s", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
+
+   if (napi_create_string_utf8(env, (const char *)_buf, NAPI_AUTO_LENGTH, &argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_UNABLE_TO_CREATE_ATTRIBUTE);
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, block, "link_as_account", argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
+      return NULL;
+   }
+
+   if (napi_create_string_utf8(env, (const char *)fhex2strv2(_buf, (unsigned char *)nano_block.signature, 64, 1), NAPI_AUTO_LENGTH, &argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_UNABLE_TO_CREATE_ATTRIBUTE);
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, block, "signature", argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
+      return NULL;
+   }
+
+   sprintf(_buf, "%016llx", (unsigned long long int)nano_block.work);
+
+   if (napi_create_string_utf8(env, (const char *)_buf, NAPI_AUTO_LENGTH, &argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_UNABLE_TO_CREATE_ATTRIBUTE);
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, block, "work", argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
+      return NULL;
+   }
+//
+   if (napi_create_object(env, &res)!=napi_ok) {
+      napi_throw_error(env, "166", "Unable to create Nano Block to parse to JavaScript");
+      return NULL;
+   }
+
+   if (napi_create_string_utf8(env, "process", NAPI_AUTO_LENGTH, &argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_UNABLE_TO_CREATE_ATTRIBUTE);
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, res, "action", argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
+      return NULL;
+   }
+
+   if (napi_create_string_utf8(env, "true", NAPI_AUTO_LENGTH, &argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_UNABLE_TO_CREATE_ATTRIBUTE);
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, res, "json_block", argv)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, res, "block", block)!=napi_ok) {
+      napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
       return NULL;
    }
 
@@ -770,6 +959,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_pow", nanojs_pow},
    {"nanojs_extract_seed_from_brainwallet", nanojs_extract_seed_from_brainwallet},
    {"nanojs_create_block", nanojs_create_block},
+   {"nanojs_block_to_JSON", nanojs_block_to_JSON},
    {NULL, NULL}
 
 };
@@ -896,7 +1086,6 @@ int add_uint64_constant_util(napi_env env, napi_value exports, MY_NANO_JS_CONST_
 
 napi_value Init(napi_env env, napi_value exports)
 {
-   napi_value fn;
 
    if (add_nano_function_util(env, exports, NANO_JS_FUNCTIONS))
       return NULL;

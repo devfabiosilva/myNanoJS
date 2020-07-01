@@ -14,6 +14,7 @@
 #define ERROR_ADD_SUB_BIG_NUMBERS "Error when ADD/SUB Nano big numbers"
 #define ERROR_UNABLE_TO_CREATE_ATTRIBUTE "Unable to create attribute"
 #define ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK "Can't add attribute to Nano in JSON block"
+//27 de junho de 2019 15:43
 
 #define VALUE_TO_SEND F_NANO_SUB_A_B
 #define VALUE_TO_RECEIVE F_NANO_ADD_A_B
@@ -23,7 +24,12 @@
 #define VALUE_SEND_RECEIVE_RAW_128 F_NANO_B_RAW_128
 #define VALUE_SEND_RECEIVE_REAL_STRING F_NANO_B_REAL_STRING
 #define VALUE_SEND_RECEIVE_RAW_STRING F_NANO_B_RAW_STRING
-//27 de junho de 2019 15:43
+#define REAL_TO_RAW (int)(1<<8)
+#define RAW_TO_REAL F_RAW_TO_STR_STRING
+#define REAL_TO_HEX (int)(1<<9)
+#define HEX_TO_REAL (int)(1<<10)
+#define RAW_TO_HEX (int)(1<<11)
+#define HEX_TO_RAW (int)(1<<12)
 
 #define F_BUF_CHAR (size_t)512
 static char _buf[F_BUF_CHAR];
@@ -934,6 +940,21 @@ napi_value nanojs_block_to_JSON(napi_env env, napi_callback_info info)
    return res;
 }
 
+napi_value nanojs_convert_balance(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv, res;
+   size_t argc=1, sz_tmp;
+
+   if (napi_get_cb_info(env, info, &argc, &argv, NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   return res;
+}
+
+typedef int (*attr_fn)(napi_env, napi_value, void *);
 typedef napi_value (*my_nano_fn)(napi_env, napi_callback_info);
 typedef struct my_nano_js_fn_call_t {
    const char *function_name;
@@ -966,29 +987,6 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
 MY_NANO_JS_CONST_UINT32_T NANO_UINT32_CONST[] = {
 
-   {"NANO_ADD_A_B", F_NANO_ADD_A_B},
-   {"NANO_SUB_A_B", F_NANO_SUB_A_B},
-   {"NANO_RES_RAW_128", F_NANO_RES_RAW_128},
-   {"NANO_RES_RAW_STRING", F_NANO_RES_RAW_STRING},
-   {"NANO_RES_REAL_STRING", F_NANO_RES_REAL_STRING},
-   {"NANO_A_RAW_128", F_NANO_A_RAW_128},
-   {"NANO_A_RAW_STRING", F_NANO_A_RAW_STRING},
-   {"NANO_A_REAL_STRING", F_NANO_A_REAL_STRING},
-   {"NANO_B_RAW_128", F_NANO_B_RAW_128},
-   {"NANO_B_RAW_STRING", F_NANO_B_RAW_STRING},
-   {"NANO_B_REAL_STRING", F_NANO_B_REAL_STRING},
-   {"BRAIN_WALLET_VERY_POOR", F_BRAIN_WALLET_VERY_POOR},
-   {"BRAIN_WALLET_POOR", F_BRAIN_WALLET_POOR},
-   {"BRAIN_WALLET_VERY_BAD", F_BRAIN_WALLET_VERY_BAD},
-   {"BRAIN_WALLET_BAD", F_BRAIN_WALLET_BAD},
-   {"BRAIN_WALLET_VERY_WEAK", F_BRAIN_WALLET_VERY_WEAK},
-   {"BRAIN_WALLET_WEAK", F_BRAIN_WALLET_WEAK},
-   {"BRAIN_WALLET_STILL_WEAK", F_BRAIN_WALLET_STILL_WEAK},
-   {"BRAIN_WALLET_MAYBE_GOOD", F_BRAIN_WALLET_MAYBE_GOOD},
-   {"BRAIN_WALLET_GOOD", F_BRAIN_WALLET_GOOD},
-   {"BRAIN_WALLET_VERY_GOOD", F_BRAIN_WALLET_VERY_GOOD},
-   {"BRAIN_WALLET_NICE", F_BRAIN_WALLET_NICE},
-   {"BRAIN_WALLET_PERFECT", F_BRAIN_WALLET_PERFECT},
    {"VALUE_TO_SEND", VALUE_TO_SEND},
    {"VALUE_TO_RECEIVE", VALUE_TO_RECEIVE},
    {"BALANCE_RAW_128", BALANCE_RAW_128},
@@ -1001,6 +999,47 @@ MY_NANO_JS_CONST_UINT32_T NANO_UINT32_CONST[] = {
 
 };
 
+MY_NANO_JS_CONST_UINT32_T NANO_UINT32_BIG_NUMBER_CONST[] = {
+
+   {"NANO_ADD_A_B", F_NANO_ADD_A_B},
+   {"NANO_SUB_A_B", F_NANO_SUB_A_B},
+   {"NANO_RES_RAW_128", F_NANO_RES_RAW_128},
+   {"NANO_RES_RAW_STRING", F_NANO_RES_RAW_STRING},
+   {"NANO_RES_REAL_STRING", F_NANO_RES_REAL_STRING},
+   {"NANO_A_RAW_128", F_NANO_A_RAW_128},
+   {"NANO_A_RAW_STRING", F_NANO_A_RAW_STRING},
+   {"NANO_A_REAL_STRING", F_NANO_A_REAL_STRING},
+   {"NANO_B_RAW_128", F_NANO_B_RAW_128},
+   {"NANO_B_RAW_STRING", F_NANO_B_RAW_STRING},
+   {"NANO_B_REAL_STRING", F_NANO_B_REAL_STRING},
+   {"REAL_TO_RAW", REAL_TO_RAW},
+   {"RAW_TO_REAL", RAW_TO_REAL},
+   {"REAL_TO_HEX", REAL_TO_HEX},
+   {"HEX_TO_REAL", HEX_TO_REAL},
+   {"RAW_TO_HEX", RAW_TO_HEX},
+   {"HEX_TO_RAW", HEX_TO_RAW},
+   {NULL, 0}
+
+};
+
+MY_NANO_JS_CONST_UINT32_T NANO_UINT32_BRAINWALLET_CONST[] = {
+
+   {"BRAIN_WALLET_VERY_POOR", F_BRAIN_WALLET_VERY_POOR},
+   {"BRAIN_WALLET_POOR", F_BRAIN_WALLET_POOR},
+   {"BRAIN_WALLET_VERY_BAD", F_BRAIN_WALLET_VERY_BAD},
+   {"BRAIN_WALLET_BAD", F_BRAIN_WALLET_BAD},
+   {"BRAIN_WALLET_VERY_WEAK", F_BRAIN_WALLET_VERY_WEAK},
+   {"BRAIN_WALLET_WEAK", F_BRAIN_WALLET_WEAK},
+   {"BRAIN_WALLET_STILL_WEAK", F_BRAIN_WALLET_STILL_WEAK},
+   {"BRAIN_WALLET_MAYBE_GOOD", F_BRAIN_WALLET_MAYBE_GOOD},
+   {"BRAIN_WALLET_GOOD", F_BRAIN_WALLET_GOOD},
+   {"BRAIN_WALLET_VERY_GOOD", F_BRAIN_WALLET_VERY_GOOD},
+   {"BRAIN_WALLET_NICE", F_BRAIN_WALLET_NICE},
+   {"BRAIN_WALLET_PERFECT", F_BRAIN_WALLET_PERFECT},
+   {NULL, 0}
+
+};
+
 MY_NANO_JS_CONST_UINT64_T NANO_CONST_UINT64[] = {
 
    {"DEFAULT_THRESHOLD", F_DEFAULT_THRESHOLD},
@@ -1008,24 +1047,19 @@ MY_NANO_JS_CONST_UINT64_T NANO_CONST_UINT64[] = {
 
 };
 
-int add_nano_function_util(napi_env env, napi_value exports, MY_NANO_JS_FUNCTION *function)
+int mynanojs_add_nano_function_util(napi_env env, napi_value exports, void *handle)
 {
 
    napi_value fn;
+   MY_NANO_JS_FUNCTION *function=(MY_NANO_JS_FUNCTION *)handle;
 
    while (function->function_name) {
 
-      if (napi_create_function(env, NULL, 0, function->fn, NULL, &fn)!=napi_ok) {
-         sprintf(_buf, "Unable to wrap native function \"%s\"", function->function_name);
-         napi_throw_error(env, "300", _buf);
+      if (napi_create_function(env, NULL, 0, function->fn, NULL, &fn)!=napi_ok)
          return 300;
-      }
 
-      if (napi_set_named_property(env, exports, function->function_name, fn)!=napi_ok) {
-         sprintf(_buf, "Unable to populate constant \"%s\"", function->function_name);
-         napi_throw_error(env, "301", (const char *)_buf);
+      if (napi_set_named_property(env, exports, function->function_name, fn)!=napi_ok)
          return 301;
-      }
 
       function++;
 
@@ -1035,23 +1069,19 @@ int add_nano_function_util(napi_env env, napi_value exports, MY_NANO_JS_FUNCTION
 
 }
 
-int add_uint32_constant_util(napi_env env, napi_value exports, MY_NANO_JS_CONST_UINT32_T *uint32_t_constant) 
+int mynanojs_add_uint32_constant_util(napi_env env, napi_value exports, void *handle) 
 {
 
    napi_value const_value;
+   MY_NANO_JS_CONST_UINT32_T *uint32_t_constant=(MY_NANO_JS_CONST_UINT32_T *)handle;
 
    while (uint32_t_constant->constant_name) {
 
-      if (napi_create_uint32(env, uint32_t_constant->constant, &const_value)!=napi_ok) {
-         napi_throw_error(env, ERROR_CONST_NUM, ERROR_PARSE_CONST);
+      if (napi_create_uint32(env, uint32_t_constant->constant, &const_value)!=napi_ok)
          return 200;
-      }
 
-      if (napi_set_named_property(env, exports, uint32_t_constant->constant_name, const_value)!=napi_ok) {
-         sprintf(_buf, "Unable to populate constant \"%s\"", uint32_t_constant->constant_name);
-         napi_throw_error(env, "201", (const char *)_buf);
+      if (napi_set_named_property(env, exports, uint32_t_constant->constant_name, const_value)!=napi_ok)
          return 201;
-      }
 
       uint32_t_constant++;
 
@@ -1059,23 +1089,19 @@ int add_uint32_constant_util(napi_env env, napi_value exports, MY_NANO_JS_CONST_
    return 0;
 }
 
-int add_uint64_constant_util(napi_env env, napi_value exports, MY_NANO_JS_CONST_UINT64_T *uint64_t_constant)
+int mynanojs_add_uint64_constant_util(napi_env env, napi_value exports, void *handle)
 {
 
    napi_value const_value;
+   MY_NANO_JS_CONST_UINT64_T *uint64_t_constant=(MY_NANO_JS_CONST_UINT64_T *)handle;
 
    while (uint64_t_constant->constant_name) {
 
-      if (napi_create_bigint_uint64(env, uint64_t_constant->constant, &const_value)!=napi_ok) {
-         napi_throw_error(env, ERROR_CONST_NUM, ERROR_PARSE_CONST);
+      if (napi_create_bigint_uint64(env, uint64_t_constant->constant, &const_value)!=napi_ok)
          return 400;
-      }
 
-      if (napi_set_named_property(env, exports, uint64_t_constant->constant_name, const_value)!=napi_ok) {
-         sprintf(_buf, "Unable to populate uint64 constant \"%s\"", uint64_t_constant->constant_name);
-         napi_throw_error(env, "401", (const char *)_buf);
+      if (napi_set_named_property(env, exports, uint64_t_constant->constant_name, const_value)!=napi_ok)
          return 401;
-      }
 
       uint64_t_constant++;
 
@@ -1084,17 +1110,63 @@ int add_uint64_constant_util(napi_env env, napi_value exports, MY_NANO_JS_CONST_
 
 }
 
+int mynanojs_add_init_property(const char *property_name, napi_env env, napi_value exports, attr_fn fn, void *handle_parameter)
+{
+   int err;
+   napi_value property;
+
+   if (napi_create_object(env, &property)!=napi_ok)
+      return 10;
+
+   if ((err=fn(env, property, handle_parameter)))
+      return err;
+
+   if (napi_set_named_property(env, exports, property_name, property)!=napi_ok)
+      return 11;
+
+   return 0;
+}
+
+#define NANOJS_NAPI_INIT_ERROR "myNanoJS internal error in C function \"%s\" %s"
+
 napi_value Init(napi_env env, napi_value exports)
 {
+   int err;
 
-   if (add_nano_function_util(env, exports, NANO_JS_FUNCTIONS))
+   if ((err=mynanojs_add_nano_function_util(env, exports, NANO_JS_FUNCTIONS))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_nano_function_util", _buf);
+      napi_throw_error(env, _buf, _buf+128);
       return NULL;
+   }
 
-   if (add_uint32_constant_util(env, exports, NANO_UINT32_CONST))
+   if ((err=mynanojs_add_uint32_constant_util(env, exports, NANO_UINT32_CONST))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_uint32_constant_util", _buf);
+      napi_throw_error(env, _buf, _buf+128);
       return NULL;
+   }
 
-   if (add_uint64_constant_util(env, exports, NANO_CONST_UINT64))
+   if ((err=mynanojs_add_uint64_constant_util(env, exports, NANO_CONST_UINT64))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_uint64_constant_util", _buf);
+      napi_throw_error(env, _buf, _buf+128);
       return NULL;
+   }
+
+   if ((err=mynanojs_add_init_property("NANO_BIG_NUMBER_TYPE", env, exports, mynanojs_add_uint32_constant_util, (void *)NANO_UINT32_BIG_NUMBER_CONST))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_init_property @ NANO_BIG_NUMBER_TYPE", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
+
+   if ((err=mynanojs_add_init_property("BRAINWALLET_TYPE", env, exports, mynanojs_add_uint32_constant_util, (void *)NANO_UINT32_BRAINWALLET_CONST))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_init_property @ BRAINWALLET_TYPE", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
 
    return exports;
 }

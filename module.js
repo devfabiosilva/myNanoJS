@@ -31,4 +31,12 @@ MY_NANO_JS.VALUE_TO_RECEIVE
 
 console.log(A);
 console.log(MY_NANO_JS.nanojs_block_to_JSON(A));
+console.log(MY_NANO_JS.nanojs_convert_balance('1000000000000000000000000000000')); //1.0
+console.log(MY_NANO_JS.nanojs_convert_balance('100', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_RAW)); //256
+console.log(MY_NANO_JS.nanojs_convert_balance('1F0', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_REAL)); //0.000000000000000000000000000496
+console.log(MY_NANO_JS.nanojs_convert_balance('00009d632382e95f9ed7ce322c800000', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_REAL)); //3192.1928861
+console.log(MY_NANO_JS.nanojs_convert_balance('1.2', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.REAL_TO_HEX)); //0000000f2568bc2d21591d7f80000000
+console.log(MY_NANO_JS.nanojs_convert_balance('2020150000000000000000000000000000', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.RAW_TO_HEX)); //2020.15
+console.log(MY_NANO_JS.nanojs_convert_balance('35.18', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.REAL_TO_HEX)); //000001bc08b5f31a0096b1d9e0000000
+
 

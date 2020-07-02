@@ -14,6 +14,7 @@
 #define ERROR_ADD_SUB_BIG_NUMBERS "Error when ADD/SUB Nano big numbers"
 #define ERROR_UNABLE_TO_CREATE_ATTRIBUTE "Unable to create attribute"
 #define ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK "Can't add attribute to Nano in JSON block"
+#define NANOJS_NAPI_INIT_ERROR "myNanoJS internal error in C function \"%s\" %s"
 //27 de junho de 2019 15:43
 
 #define VALUE_TO_SEND F_NANO_SUB_A_B
@@ -25,7 +26,7 @@
 #define VALUE_SEND_RECEIVE_REAL_STRING F_NANO_B_REAL_STRING
 #define VALUE_SEND_RECEIVE_RAW_STRING F_NANO_B_RAW_STRING
 #define REAL_TO_RAW (int)(1<<8)
-#define RAW_TO_REAL F_RAW_TO_STR_STRING
+#define RAW_TO_REAL (int)(1<<13)
 #define REAL_TO_HEX (int)(1<<9)
 #define HEX_TO_REAL (int)(1<<10)
 #define RAW_TO_HEX (int)(1<<11)
@@ -742,9 +743,7 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
       return NULL;
    }
 
-   memcpy(p, &nano_block, sizeof(nano_block));
-
-   if (napi_create_external_arraybuffer(env, p, sizeof(nano_block), NULL, NULL, &res)!=napi_ok) {
+   if (napi_create_external_arraybuffer(env, memcpy(p, &nano_block, sizeof(nano_block)), sizeof(nano_block), NULL, NULL, &res)!=napi_ok) {
       napi_throw_error(env, "156", "Can't copy array buffer to store Nano Block in Javascript");
       return NULL;
    }
@@ -940,14 +939,152 @@ napi_value nanojs_block_to_JSON(napi_env env, napi_callback_info info)
    return res;
 }
 
+#define BUFFER_ADJUST (size_t)3*F_RAW_STR_MAX_SZ
 napi_value nanojs_convert_balance(napi_env env, napi_callback_info info)
 {
    int err;
-   napi_value argv, res;
-   size_t argc=1, sz_tmp;
-
-   if (napi_get_cb_info(env, info, &argc, &argv, NULL, NULL)!=napi_ok) {
+   napi_value argv[2], res;
+   size_t argc=2, sz_tmp, tmp;
+   uint32_t type;
+   char *p;
+//type is optional. If ommited then assume value is raw -> real
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
       napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>2) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (!argc) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (argc==1)
+      type=RAW_TO_REAL;
+   else if (napi_get_value_uint32(env, argv[1], &type)!=napi_ok) {
+      napi_throw_error(env, "167", "Can't parse type for conversion");
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[0], p=(_buf+192), (sizeof(_buf)-192)+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "168", "Can't parse Big number value for conversion");
+      return NULL;
+   }
+
+   if (!sz_tmp) {
+      napi_throw_error(env, "173", "Empty value");
+      return NULL;
+   }
+
+   if (sz_tmp>(F_RAW_STR_MAX_SZ-1)) {
+      sprintf(_buf, "Wrong balance size = %lu", (unsigned long int)sz_tmp);
+      napi_throw_error(env, "167", _buf);
+      return NULL;
+   }
+
+   p[sz_tmp]=0;
+
+   switch (type) {
+
+      case REAL_TO_RAW:
+      case REAL_TO_HEX:
+         if ((err=f_nano_parse_real_str_to_raw128_t((uint8_t *)(_buf+BUFFER_ADJUST), (const char *)p))) {
+            sprintf(_buf, "%d", err);
+            sprintf(p, "Can't parse Real to Nao Raw big int %s", _buf);
+            napi_throw_error(env, _buf, p);
+            return NULL;
+         }
+
+         if ((int)type&REAL_TO_RAW) {
+            if ((err=f_nano_balance_to_str(_buf, BUFFER_ADJUST, NULL, (uint8_t *)(_buf+BUFFER_ADJUST)))) {
+               sprintf(_buf, "%d", err);
+               sprintf(p, "Can't convert raw hex big number to raw string %s", _buf);
+               napi_throw_error(env, _buf, p);
+               return NULL;
+            }
+
+            break;
+         }
+         
+         fhex2strv2(_buf, (const void *)(_buf+BUFFER_ADJUST), sizeof(f_uint128_t), 0);
+         break;
+
+      case RAW_TO_REAL:
+         if ((err=f_nano_raw_to_string(_buf, NULL, BUFFER_ADJUST, p, F_RAW_TO_STR_STRING))) {
+            sprintf(_buf, "%d", err);
+            sprintf(p, "Can't convert raw string big number to real string %s", _buf);
+            napi_throw_error(env, _buf, p);
+            return NULL;
+         }
+
+         break;
+
+      case RAW_TO_HEX:
+         if ((err=f_nano_parse_raw_str_to_raw128_t((uint8_t *)(_buf+BUFFER_ADJUST), (const char *)p))) {
+            sprintf(_buf, "%d", err);
+            sprintf(p, "Can't convert raw string big number to raw hex binary %s", _buf);
+            napi_throw_error(env, _buf, p);
+            return NULL;
+         }
+
+         fhex2strv2(_buf, (_buf+BUFFER_ADJUST), sizeof(f_uint128_t), 0);
+         break;
+
+      case HEX_TO_REAL:
+      case HEX_TO_RAW:
+         if (sz_tmp>2*sizeof(f_uint128_t)) {
+            sprintf(_buf, "Hex string balance length %lu. Nano big number must be 16 bytes long", (unsigned long int)sz_tmp);
+            napi_throw_error(env, "169", p);
+            return NULL;
+         }
+
+         memset(_buf+256, 0, sizeof(_buf)-256);
+         tmp=0;
+
+         if (sz_tmp^2*sizeof(f_uint128_t)) {
+            tmp=2*sizeof(f_uint128_t)-sz_tmp;
+            memset(_buf+256, '0', tmp);
+         }
+
+         memcpy(_buf+tmp+256, p, sz_tmp);
+
+         if ((err=f_str_to_hex((uint8_t *)_buf+BUFFER_ADJUST, _buf+256))) {
+            napi_throw_error(env, "170", "Can't parse string to binary hex");
+            return NULL;
+         }
+
+         if ((int)type&HEX_TO_REAL) {
+            if ((err=f_nano_raw_to_string(_buf, NULL, BUFFER_ADJUST, (void *)_buf+BUFFER_ADJUST, F_RAW_TO_STR_UINT128))) {
+               sprintf(_buf, "%d", err);
+               sprintf(p, "Can't parse raw binary hex to real string %s", _buf);
+               napi_throw_error(env, _buf, p);
+               return NULL;
+            }
+
+            break;
+         }
+
+         if ((err=f_nano_balance_to_str(_buf, BUFFER_ADJUST, NULL, (uint8_t *)(_buf+BUFFER_ADJUST)))) {
+            sprintf(_buf, "%d", err);
+            sprintf(p, "Can't parse raw hex binary to raw string %s", _buf);
+            napi_throw_error(env, _buf, p);
+            return NULL;
+         }
+
+         break;
+
+      default:
+         napi_throw_error(env, "171", "Unknown conversion type");
+         return NULL;
+
+   }
+
+   if (napi_create_string_utf8(env, _buf, NAPI_AUTO_LENGTH, &res)!=napi_ok) {
+      napi_throw_error(env, "172", "Unable to parse conversion to JavaScript");
       return NULL;
    }
 
@@ -981,6 +1118,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_extract_seed_from_brainwallet", nanojs_extract_seed_from_brainwallet},
    {"nanojs_create_block", nanojs_create_block},
    {"nanojs_block_to_JSON", nanojs_block_to_JSON},
+   {"nanojs_convert_balance", nanojs_convert_balance},
    {NULL, NULL}
 
 };
@@ -1126,8 +1264,6 @@ int mynanojs_add_init_property(const char *property_name, napi_env env, napi_val
 
    return 0;
 }
-
-#define NANOJS_NAPI_INIT_ERROR "myNanoJS internal error in C function \"%s\" %s"
 
 napi_value Init(napi_env env, napi_value exports)
 {

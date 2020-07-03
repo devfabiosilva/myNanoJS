@@ -78,6 +78,27 @@ int mynanojs_add_nano_function_util(napi_env env, napi_value exports, void *hand
 
 }
 
+int mynanojs_add_char_constant_util(napi_env env, napi_value exports, void *handle)
+{
+
+   napi_value const_value;
+   MY_NANO_JS_CONST_CHAR *char_constant=(MY_NANO_JS_CONST_CHAR *)handle;
+
+   while (char_constant->constant_name) {
+
+      if (napi_create_string_utf8(env, char_constant->constant, NAPI_AUTO_LENGTH, &const_value)!=napi_ok)
+         return 402;
+
+      if (napi_set_named_property(env, exports, char_constant->constant_name, const_value)!=napi_ok)
+         return 403;
+
+      char_constant++;
+
+   }
+   return 0;
+
+}
+
 int mynanojs_add_uint32_constant_util(napi_env env, napi_value exports, void *handle) 
 {
 

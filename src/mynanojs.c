@@ -73,7 +73,7 @@ napi_value nanojs_wallet_to_public_key(napi_env env, napi_callback_info info)
    return res;
 }
 
-napi_value nanojs_seed_to_nano_wallet(napi_env env, napi_callback_info info)
+napi_value nanojs_seed_to_keypair(napi_env env, napi_callback_info info)
 {
    int err;
    napi_value argv[2], res, wn;
@@ -675,17 +675,17 @@ napi_value nanojs_block_to_JSON(napi_env env, napi_callback_info info)
    }
 
    if (napi_get_arraybuffer_info(env, argv, &buffer, &sz_tmp)!=napi_ok) {
-      napi_throw_error(env, "162", "Can't read Nano block");
+      napi_throw_error(env, ERROR_CANT_READ_NANO_BLOCK_NUMBER, ERROR_CANT_READ_NANO_BLOCK);
       return NULL;
    }
 
    if (sz_tmp!=sizeof(F_BLOCK_TRANSFER)) {
-      napi_throw_error(env, "163", "Wrong Nano block size");
+      napi_throw_error(env, WRONG_NANO_BLOCK_SZ_ERR, WRONG_NANO_BLOCK_SZ);
       return NULL;
    }
 
    if (!f_nano_is_valid_block((F_BLOCK_TRANSFER *)buffer)) {
-      napi_throw_error(env, "164", "Invalid Nano Block");
+      napi_throw_error(env, ERROR_INVALID_NANO_BLK_NUMBER, ERROR_INVALID_NANO_BLK);
       return NULL;
    }
 
@@ -1001,17 +1001,236 @@ napi_value nanojs_convert_balance(napi_env env, napi_callback_info info)
    return res;
 }
 
+napi_value nanojs_sign_block(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[2], res;
+   size_t argc=2, sz_tmp;
+   uint8_t *p;
+   void *buffer;
+   F_BLOCK_TRANSFER nano_block;
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>2) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<2) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_arraybuffer_info(env, argv[0], &buffer, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_READ_NANO_BLOCK_NUMBER, ERROR_CANT_READ_NANO_BLOCK);
+      return NULL;
+   }
+
+   if (sz_tmp!=sizeof(F_BLOCK_TRANSFER)) {
+      napi_throw_error(env, WRONG_NANO_BLOCK_SZ_ERR, WRONG_NANO_BLOCK_SZ);
+      return NULL;
+   }
+
+   if (!f_nano_is_valid_block((F_BLOCK_TRANSFER *)buffer)) {
+      napi_throw_error(env, ERROR_INVALID_NANO_BLK_NUMBER, ERROR_INVALID_NANO_BLK);
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[1], _buf, sizeof(_buf), &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "174", "Can't parse Nano private key to sign block");
+      return NULL;
+   }
+
+   if (sz_tmp!=128) {
+      napi_throw_error(env, "175", "Wrong private key size");
+      return NULL;
+   }
+
+   _buf[128]=0;
+   memcpy(&nano_block, buffer, sizeof(nano_block));
+
+   if ((err=f_str_to_hex(p=(uint8_t *)(_buf+256), _buf))) {
+      memory_flush();
+      sprintf(_buf, "%d", err);
+      sprintf((char *)p, "Can't parse private key to binary hex %s", _buf);
+      napi_throw_error(env, _buf, (char *)p);
+      return NULL;
+   }
+
+   if ((err=f_nano_sign_block(&nano_block, NULL, p))) {
+      sprintf(_buf, "%d", err);
+      sprintf((char *)p, "Can't sign Nano block %s", _buf);
+      napi_throw_error(env, _buf, (char *)p);
+   }
+
+   memory_flush();
+
+   if (err)
+      return NULL;
+
+   if (napi_create_arraybuffer(env, sizeof(nano_block), (void **)&p, &res)!=napi_ok) {
+      napi_throw_error(env, "176", "Can't create array buffer to store signed Nano Block");
+      return NULL;
+   }
+
+   if (napi_create_external_arraybuffer(env, memcpy(p, &nano_block, sizeof(nano_block)), sizeof(nano_block), NULL, NULL, &res)!=napi_ok) {
+      napi_throw_error(env, "177", "Can't copy array buffer to store signed Nano Block in Javascript");
+      return NULL;
+   }
+
+   return res;
+}
+
+napi_value nanojs_public_key_to_wallet(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[2], res;
+   size_t argc=2, sz_tmp;
+   char *prefix, *p;
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>2) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (!argc) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (argc==1)
+      prefix=NANO_PREFIX;
+   else if (napi_get_value_string_utf8(env, argv[1], prefix=(_buf+128), sizeof(NANO_PREFIX)+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "178", "Can't determine Nano wallet prefix");
+      return NULL;
+   }
+
+   if (sz_tmp==sizeof(NANO_PREFIX)) {
+      napi_throw_error(env, "179", "Wrong or invalid prefix size");
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[0], p=(_buf+256), 66, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "180", "Can't parse string hex public key");
+      return NULL;
+   }
+
+   if (sz_tmp!=64) {
+      sprintf(_buf, "%lu", (unsigned long int)sz_tmp);
+      sprintf(p, "Wrong hex public key size %s", _buf);
+      napi_throw_error(env, _buf, p);
+      return NULL;
+   }
+
+   p[64]=0;
+
+   if ((err=f_str_to_hex((uint8_t *)_buf, p))) {
+      napi_throw_error(env, "181", "Can't convert hex string public key to hex binary public key");
+      return NULL;
+   }
+
+   if ((err=pk_to_wallet(p, prefix, (uint8_t *)_buf))) {
+      sprintf(_buf, "%d", err);
+      sprintf(p, "Can't convert public key to wallet %s", _buf);
+      napi_throw_error(env, _buf, p);
+      return NULL;
+   }
+
+   if (napi_create_string_utf8(env, p, NAPI_AUTO_LENGTH, &res)!=napi_ok) {
+      napi_throw_error(env, "182", "Unable to parse Nano wallet conversion to JavaScript");
+      return NULL;
+   }
+
+   return res;
+}
+
+napi_value nanojs_get_block_hash(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv, res;
+   size_t argc=1, sz_tmp;
+   uint8_t *p;
+   void *buffer;
+   F_BLOCK_TRANSFER nano_block;
+
+   if (napi_get_cb_info(env, info, &argc, &argv, NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>1) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (!argc) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_arraybuffer_info(env, argv, &buffer, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_READ_NANO_BLOCK_NUMBER, ERROR_CANT_READ_NANO_BLOCK);
+      return NULL;
+   }
+
+   if (sz_tmp!=sizeof(F_BLOCK_TRANSFER)) {
+      napi_throw_error(env, WRONG_NANO_BLOCK_SZ_ERR, WRONG_NANO_BLOCK_SZ);
+      return NULL;
+   }
+
+   if (!f_nano_is_valid_block((F_BLOCK_TRANSFER *)buffer)) {
+      napi_throw_error(env, ERROR_INVALID_NANO_BLK_NUMBER, ERROR_INVALID_NANO_BLK);
+      return NULL;
+   }
+
+   memcpy(&nano_block, buffer, sizeof(nano_block));
+
+   if ((err=f_nano_get_block_hash(p=(uint8_t *)(_buf+128), &nano_block))) {
+      sprintf(_buf, "%d", err);
+      sprintf((char *)p, "Can't calculate block hash %s", _buf);
+      napi_throw_error(env, _buf, (char *)p);
+      return NULL;
+   }
+
+   if (napi_create_string_utf8(env, fhex2strv2(_buf, p, 32, 1), NAPI_AUTO_LENGTH, &res)!=napi_ok) {
+      napi_throw_error(env, "183", "Unable to parse HASH result of the block to JavaScript");
+      return NULL;
+   }
+
+   return res;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
    {"nanojs_wallet_to_public_key", nanojs_wallet_to_public_key},
-   {"nanojs_seed_to_nano_wallet", nanojs_seed_to_nano_wallet},
+   {"nanojs_seed_to_keypair", nanojs_seed_to_keypair},
    {"nanojs_add_sub", nanojs_add_sub},
    {"nanojs_pow", nanojs_pow},
    {"nanojs_extract_seed_from_brainwallet", nanojs_extract_seed_from_brainwallet},
    {"nanojs_create_block", nanojs_create_block},
    {"nanojs_block_to_JSON", nanojs_block_to_JSON},
    {"nanojs_convert_balance", nanojs_convert_balance},
+   {"nanojs_sign_block", nanojs_sign_block},
+   {"nanojs_public_key_to_wallet", nanojs_public_key_to_wallet},
+   {"nanojs_get_block_hash", nanojs_get_block_hash},
+   {NULL, NULL}
+
+};
+
+MY_NANO_JS_CONST_CHAR NANO_JS_CHAR_CONSTS[] = {
+
+   {"NANO_PREFIX", NANO_PREFIX},
+   {"XRB_PREFIX", XRB_PREFIX},
    {NULL, NULL}
 
 };
@@ -1085,6 +1304,13 @@ napi_value Init(napi_env env, napi_value exports)
    if ((err=mynanojs_add_nano_function_util(env, exports, NANO_JS_FUNCTIONS))) {
       sprintf(_buf, "%d", err);
       sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_nano_function_util", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
+
+   if ((err=mynanojs_add_char_constant_util(env, exports, NANO_JS_CHAR_CONSTS))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_char_constant_util", _buf);
       napi_throw_error(env, _buf, _buf+128);
       return NULL;
    }

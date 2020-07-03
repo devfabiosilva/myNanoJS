@@ -18,6 +18,12 @@ static char _buf[F_BUF_CHAR];
 #define ERROR_UNABLE_TO_CREATE_ATTRIBUTE "Unable to create attribute"
 #define ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK "Can't add attribute to Nano in JSON block"
 #define NANOJS_NAPI_INIT_ERROR "myNanoJS internal error in C function \"%s\" %s"
+#define ERROR_CANT_READ_NANO_BLOCK "Can't read Nano block"
+#define ERROR_CANT_READ_NANO_BLOCK_NUMBER "162"
+#define WRONG_NANO_BLOCK_SZ "Wrong Nano block size"
+#define WRONG_NANO_BLOCK_SZ_ERR "163"
+#define ERROR_INVALID_NANO_BLK "Invalid Nano Block"
+#define ERROR_INVALID_NANO_BLK_NUMBER "164"
 
 #define VALUE_TO_SEND F_NANO_SUB_A_B
 #define VALUE_TO_RECEIVE F_NANO_ADD_A_B
@@ -36,10 +42,13 @@ static char _buf[F_BUF_CHAR];
 
 typedef int (*attr_fn)(napi_env, napi_value, void *);
 typedef napi_value (*my_nano_fn)(napi_env, napi_callback_info);
+
 typedef struct my_nano_js_fn_call_t {
    const char *function_name;
    my_nano_fn fn;
 } MY_NANO_JS_FUNCTION;
+
+typedef struct constant_char_t { const char *constant_name, *constant; } MY_NANO_JS_CONST_CHAR;
 
 typedef struct constant_uint32_t_t {
    const char *constant_name;
@@ -54,6 +63,7 @@ typedef struct constant_uint64_t_t {
 void gen_rand_no_entropy(void *, size_t);
 int extract_public_key_from_wallet_or_hex_str_util(int *, uint8_t *, char *, size_t);
 int mynanojs_add_nano_function_util(napi_env, napi_value, void *);
+int mynanojs_add_char_constant_util(napi_env, napi_value, void *);
 int mynanojs_add_uint32_constant_util(napi_env, napi_value, void *);
 int mynanojs_add_uint64_constant_util(napi_env, napi_value, void *);
 int mynanojs_add_init_property(const char *, napi_env, napi_value, attr_fn, void *);

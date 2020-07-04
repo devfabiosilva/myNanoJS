@@ -29,7 +29,7 @@ MY_NANO_JS.VALUE_SEND_RECEIVE_REAL_STRING,
 '2A435EA809381A15A743C57DBF2E7BB06371AEA75792F9416F357C4C1A19AE3F',
 MY_NANO_JS.VALUE_TO_RECEIVE
 );
-
+console.log("test");
 console.log(A);
 console.log(MY_NANO_JS.nanojs_block_to_JSON(A));
 console.log(MY_NANO_JS.nanojs_convert_balance('1000000000000000000000000000000')); //1.0
@@ -48,5 +48,20 @@ console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.publicKey, MY_NANO_J
 console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.publicKey, MY_NANO_JS.NANO_PREFIX));
 console.log(KEY_PAIR.publicKey);
 
+HASH='3FF8EC2F80C4082376C8CB771361F98133546AAC70B3AF877DA286E80BC9A7BE';
+wallet='nano_3xinwsdt57qo5bcysock15do87r9fuepq84erab5udm6wekymq9e9tiin8hw';
+wallet_public_key='F614E657A196F51A55ECD55200D75317076ED96B984CC2123DAE64E325E9DCEC';
+signature='276B9F53A3DB55A64FAA381EBE1BF7FD51F7E1DD1368189A1AA2E84147AD1AF83A506ED6CCBFC0CCCB69D819B93B9B31D909F89141FE73070B0F253A79467505';
 
+hashBuffer = Buffer.from(HASH, 'hex');
+hashArrayBuffer = new ArrayBuffer(hashBuffer.length);
+hashUint8Array = new Uint8Array(hashArrayBuffer);
+hashUint8Array.set(hashBuffer);
+
+console.log(hashUint8Array);
+console.log(hashArrayBuffer);
+
+console.log(MY_NANO_JS.nanojs_verify_message(signature, hashArrayBuffer, wallet)); // return true
+//console.log(MY_NANO_JS.nanojs_wallet_to_public_key('nano_3xinwsdt57qo5bcysock15do87r9fuepq84erab5udm6wekymq9e9tiin8hw'));
+console.log(MY_NANO_JS.nanojs_verify_message(signature, hashArrayBuffer, wallet_public_key)); // return true
 

@@ -1209,6 +1209,82 @@ napi_value nanojs_get_block_hash(napi_env env, napi_callback_info info)
    return res;
 }
 
+napi_value nanojs_verify_message(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[3], res;
+   size_t argc=3, sz_tmp, buffer_sz;
+   uint32_t type;
+   char *p;
+   void *buffer;
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>3) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<3) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_arraybuffer_info(env, argv[1], &buffer, &buffer_sz)!=napi_ok) {
+      napi_throw_error(env, "184", "Unable to parse ArrayBuffer to verify signature");
+      return NULL;
+   }
+
+   if (!buffer_sz) {
+      napi_throw_error(env, "185", "Empty ArrayBuffer");
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[2], _buf, MAX_STR_NANO_CHAR+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "186", "Can't parse wallet or public key for verify signature");
+      return NULL;
+   }
+
+   if (sz_tmp==MAX_STR_NANO_CHAR) {
+      napi_throw_error(env, "187", "Public key/Nano Wallet too long");
+      return NULL;
+   }
+
+   _buf[sz_tmp]=0;
+
+   if (napi_get_value_string_utf8(env, argv[0], p=(_buf+256), 130, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "188", "Can't parse signature to verify signed ArrayBuffer");
+      return NULL;
+   }
+
+   if (sz_tmp==129) {
+      napi_throw_error(env, "189", "Wrong signature size");
+      return NULL;
+   }
+
+   p[sz_tmp]=0;
+
+   ((is_nano_prefix((const char *)_buf, NANO_PREFIX))||(is_nano_prefix((const char *)_buf, XRB_PREFIX)))?
+      (type=F_VERIFY_SIG_NANO_WALLET):(type=F_VERIFY_SIG_ASCII_HEX);
+
+   if ((err=f_verify_signed_data((const unsigned char *)p, (const unsigned char *)buffer, buffer_sz, (const void *)_buf, type|F_IS_SIGNATURE_RAW_HEX_STRING))<0) {
+      sprintf(_buf, "%d", err);
+      sprintf(p, "Internal C funtion error. Can't verify signed data %s", _buf);
+      napi_throw_error(env, _buf, p);
+      return NULL;
+   }
+
+   if (napi_get_boolean(env, (bool)(err>0), &res)!=napi_ok) {
+      napi_throw_error(env, "190", "Can't determine valid signature of the ArrayBuffer");
+      return NULL;
+   }
+
+   return res;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
@@ -1223,6 +1299,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_sign_block", nanojs_sign_block},
    {"nanojs_public_key_to_wallet", nanojs_public_key_to_wallet},
    {"nanojs_get_block_hash", nanojs_get_block_hash},
+   {"nanojs_verify_message", nanojs_verify_message},
    {NULL, NULL}
 
 };

@@ -1285,6 +1285,55 @@ napi_value nanojs_verify_message(napi_env env, napi_callback_info info)
    return res;
 }
 
+napi_value nanojs_generate_seed(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv, res;
+   size_t argc=1;
+   uint32_t entropy;
+   uint8_t *p;
+
+   if (napi_get_cb_info(env, info, &argc, &argv, NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>1) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (!argc) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_value_uint32(env, argv, &entropy)!=napi_ok) {
+      napi_throw_error(env, "191", "Can't parse entropy");
+      return NULL;
+   }
+
+   f_random_attach(gen_rand_no_entropy);
+
+   if ((err=f_generate_nano_seed(p=(uint8_t *)(_buf+128), entropy))) {
+      sprintf(_buf, "%d", err);
+      sprintf(p, "Can't generate Nano SEED given entropy %s", _buf);
+      napi_throw_error(env, _buf, p);
+      return NULL;
+   }
+
+   f_random_detach();
+
+   if (napi_create_string_utf8(env, f_nano_key_to_str(_buf, (unsigned char *)p), NAPI_AUTO_LENGTH, &res)!=napi_ok) {
+      napi_throw_error(env, "192", "Unable to parse created Nano SEED to JavaScript");
+      res=NULL;
+   }
+
+   memory_flush();
+
+   return res;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
@@ -1300,6 +1349,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_public_key_to_wallet", nanojs_public_key_to_wallet},
    {"nanojs_get_block_hash", nanojs_get_block_hash},
    {"nanojs_verify_message", nanojs_verify_message},
+   {"nanojs_generate_seed", nanojs_generate_seed},
    {NULL, NULL}
 
 };
@@ -1374,6 +1424,17 @@ MY_NANO_JS_CONST_UINT64_T NANO_CONST_UINT64[] = {
 
 };
 
+MY_NANO_JS_CONST_UINT32_T NANO_UINT32_ENTROPY_CONST[] = {
+
+   {"ENTROPY_TYPE_PARANOIC", F_ENTROPY_TYPE_PARANOIC},
+   {"ENTROPY_TYPE_EXCELENT", F_ENTROPY_TYPE_EXCELENT},
+   {"ENTROPY_TYPE_GOOD", F_ENTROPY_TYPE_GOOD},
+   {"ENTROPY_TYPE_NOT_ENOUGH", F_ENTROPY_TYPE_NOT_ENOUGH},
+   {"ENTROPY_TYPE_NOT_RECOMENDED", F_ENTROPY_TYPE_NOT_RECOMENDED},
+   {NULL, 0}
+
+};
+
 napi_value Init(napi_env env, napi_value exports)
 {
    int err;
@@ -1416,6 +1477,13 @@ napi_value Init(napi_env env, napi_value exports)
    if ((err=mynanojs_add_init_property("BRAINWALLET_TYPE", env, exports, mynanojs_add_uint32_constant_util, (void *)NANO_UINT32_BRAINWALLET_CONST))) {
       sprintf(_buf, "%d", err);
       sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_init_property @ BRAINWALLET_TYPE", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
+
+   if ((err=mynanojs_add_init_property("ENTROPY_TYPE", env, exports, mynanojs_add_uint32_constant_util, (void *)NANO_UINT32_ENTROPY_CONST))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_init_property @ ENTROPY_TYPE", _buf);
       napi_throw_error(env, _buf, _buf+128);
       return NULL;
    }

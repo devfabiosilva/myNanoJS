@@ -1,5 +1,9 @@
 const MY_NANO_JS = require('./build/Release/mynanojs');
 
+//console.log(MY_NANO_JS.nanojs_pow('de0c84215a6b7429d3d2836f54b6b917c9301103134904457a928c56580cf5a4', 4));
+console.log("Fixed 1");
+//console.log(MY_NANO_JS.nanojs_pow('fa0c8b217a6b7429d3d2136f54b6b917c9301103134904457a928c56580cf5a3', 4));
+console.log('Fixed 2');
 console.log(MY_NANO_JS);
 console.log(MY_NANO_JS.nanojs_wallet_to_public_key('xrb_3tta9pdxr4djdcm6r3c7969syoirj3dunrtynmmi8n1qtxzk9iksoz1gxdrh'));
 KEY_PAIR=MY_NANO_JS.nanojs_seed_to_keypair('86A4EBE059446FF84F8C4FAC7C56EF97D16DA7369845051414A0A6DA5EB99FCB', 1728);
@@ -64,8 +68,41 @@ console.log(hashArrayBuffer);
 console.log(MY_NANO_JS.nanojs_verify_message(signature, hashArrayBuffer, wallet)); // return true
 //console.log(MY_NANO_JS.nanojs_wallet_to_public_key('nano_3xinwsdt57qo5bcysock15do87r9fuepq84erab5udm6wekymq9e9tiin8hw'));
 console.log(MY_NANO_JS.nanojs_verify_message(signature, hashArrayBuffer, wallet_public_key)); // return true
-console.log(MY_NANO_JS.nanojs_generate_seed(MY_NANO_JS.ENTROPY_TYPE.ENTROPY_TYPE_NOT_RECOMENDED)); // Worst but fast within milliseconds to generate Random SEED
-console.log(MY_NANO_JS.nanojs_generate_seed(MY_NANO_JS.ENTROPY_TYPE.ENTROPY_TYPE_PARANOIC)); // Very good but slow 30 s to 2 min to generate Nano SEED
+//console.log(MY_NANO_JS.nanojs_generate_seed(MY_NANO_JS.ENTROPY_TYPE.ENTROPY_TYPE_NOT_RECOMENDED)); // Worst but fast within milliseconds to generate Random SEED
+//console.log(MY_NANO_JS.nanojs_generate_seed(MY_NANO_JS.ENTROPY_TYPE.ENTROPY_TYPE_PARANOIC)); // Very good but slow 30 s to 2 min to generate Nano SEED
 // Random SEED was designed and implemented using topic 7.12 - Z. S. Spakovszky - 2005 -(https://web.mit.edu/16.unified/www/FALL/thermodynamics/notes/node56.html)[https://web.mit.edu/16.unified/www/FALL/thermodynamics/notes/node56.html]
+console.log(MY_NANO_JS.nanojs_bip39_to_seed('dry umbrella analyst regular resemble belt exercise motor hungry pizza purity convince narrow ancient arrange hard affair cloth pigeon board grain all story income', 'dictionary.dic')); //43bd84215a6b7429d3d4836f54b6b917c9301103134904457a928c56580cf5a3
+
+encrypted_stream_password = 'myPasswordHere@12345';
+encrypted_stream = "5f6e616e6f77616c6c657466696c655f000001004e414e4f205365656420456e637279707465642066696c652f73747265616d2e204b656570206974207361666520616e64206261636b75702069742e20546869732066696c652069732070726f7465637465642062792070617373776f72642e2042555920424954434f494e20616e64204e414e4f2021212100d3dfc3ef437c2667f3ddf5a7365718fba12e7521b4b36ff1382d5b361b8ab3000c745242238bb1d66a5f32993452c8b74e3fadb1e2dc1c2a0a5dc28f745558d475160780ade7e46721c2a32e157937382eba1128c554329846af28de53f55c6134ebd45ef5e75710ab2ba44a6bb8e9af576dcead03294b22552380821075c7f73d6aa325806a2754ca128d642f16c21a8f9656d703fe15dbf065295b5f117591eda3b9ddbab5e4759c813168ffca11501a642cd5b69dfe36bf453d39ef0ebe3a53b19699501cbfbc3adc9dce4b3ae1bf42bd";
+
+encrypted_stream_buffer = Buffer.from(encrypted_stream, 'hex');
+encryptedArrayBuffer = new ArrayBuffer(encrypted_stream_buffer.length);
+encryptedUint8Array = new Uint8Array(encryptedArrayBuffer);
+encryptedUint8Array.set(encrypted_stream_buffer);
+
+console.log(encrypted_stream);
+console.log(encryptedArrayBuffer);
+
+console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(encryptedArrayBuffer, encrypted_stream_password, 'dictionary.dic'));
+
+const SEED_TEST = 'A614E6573190751A55ECD55200D75B17076ED46B984CC2123DAE64E32518DC2A';
+const password_test = 'mypasswordherewithallcharhereA@1';
+console.log(MY_NANO_JS.nanojs_gen_seed_to_encrypted_stream(MY_NANO_JS.ENTROPY_TYPE.ENTROPY_TYPE_GOOD, password_test));
+
+SEED_TEST_BUFFER = Buffer.from(SEED_TEST, 'hex');
+SEED_TEST_ARRAY_BUFFER = new ArrayBuffer(SEED_TEST_BUFFER.length);
+SEED_UINT8_ARRAY = new Uint8Array(SEED_TEST_ARRAY_BUFFER);
+SEED_UINT8_ARRAY.set(SEED_TEST_BUFFER);
+console.log(SEED_TEST);
+console.log(SEED_TEST_ARRAY_BUFFER);
+const encrypted_result = MY_NANO_JS.nanojs_gen_seed_to_encrypted_stream(SEED_TEST_ARRAY_BUFFER, password_test);
+console.log(encrypted_result);
+console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(encrypted_result, password_test, 'dictionary.dic'));
+
+const K = MY_NANO_JS.nanojs_gen_seed_to_encrypted_stream(MY_NANO_JS.ENTROPY_TYPE.ENTROPY_TYPE_PARANOIC, password_test);
+console.log(K);
+
+console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(K, password_test, 'dictionary.dic'));
 
 

@@ -24,6 +24,56 @@ void memory_flush() {
    memset(_buf, 0, sizeof(_buf));
 }
 
+char *verify_password_util(char *text, int err)
+{
+   strcpy(text, "< ");
+   err*=-1;
+
+   if (err&F_PASS_IS_OUT_OVF) {
+      strcat(text, "Password is overflow ");
+      goto verify_password_util_EXIT1;
+   }
+
+   if (err&F_PASS_IS_TOO_SHORT) {
+      strcat(text, "Password is too short ");
+      goto verify_password_util_EXIT1;
+   }
+
+   if (err&F_PASS_IS_TOO_LONG) {
+      strcat(text, "Password is very long ");
+      goto verify_password_util_EXIT1;
+   }
+
+   if (err&F_PASS_MUST_HAVE_AT_LEAST_ONE_UPPER_CASE)
+      strcat(text, "|Password must have at least one upper case ");
+
+   if (err&F_PASS_MUST_HAVE_AT_LEAST_ONE_LOWER_CASE)
+      strcat(text, "|Password must have one lower case ");
+
+   if (err&F_PASS_MUST_HAVE_AT_LEAST_ONE_SYMBOL)
+      strcat(text, "|Password must have at least one symbol ");
+
+   if (err&F_PASS_MUST_HAVE_AT_LEAST_ONE_NUMBER)
+      strcat(text, "|Password must have at least one number ");
+
+verify_password_util_EXIT1:
+   return strcat(text, ">");
+}
+
+int filter_no_entropy_util(uint32_t entropy)
+{
+   switch (entropy) {
+      case F_ENTROPY_TYPE_PARANOIC:
+      case F_ENTROPY_TYPE_EXCELENT:
+      case F_ENTROPY_TYPE_GOOD:
+      case F_ENTROPY_TYPE_NOT_ENOUGH:
+      case F_ENTROPY_TYPE_NOT_RECOMENDED:
+      return 0;
+   }
+
+   return 1;
+}
+
 int extract_public_key_from_wallet_or_hex_str_util(int *prefix, uint8_t *dest, char *wallet_or_pk, size_t wallet_or_pk_sz)
 {
 // if prefix!=NULL then prefix is parsed

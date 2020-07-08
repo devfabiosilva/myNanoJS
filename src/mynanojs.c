@@ -101,7 +101,7 @@ napi_value nanojs_seed_to_keypair(napi_env env, napi_callback_info info)
    }
 
    if (sz_tmp!=64) {
-      napi_throw_error(env, "106", "Wrong Nano SEED size");
+      napi_throw_error(env, ERROR_WRONG_NANO_SEED_SIZE, ERROR_WRONG_NANO_SEED_SIZE_MSG);
       return NULL;
    }
 
@@ -109,7 +109,7 @@ napi_value nanojs_seed_to_keypair(napi_env env, napi_callback_info info)
 
    if ((err=f_str_to_hex((uint8_t *)(_buf+128), _buf))) {
       sprintf(_buf, "%d", err);
-      napi_throw_error(env, _buf, "Can't convert Nano SEED to binary");
+      napi_throw_error(env, _buf, ERROR_CANT_CONVERT_NANO_SEED_TO_BINARY);
       goto nanojs_seed_to_nano_wallet_EXIT1;
    }
 
@@ -1239,7 +1239,7 @@ napi_value nanojs_verify_message(napi_env env, napi_callback_info info)
    }
 
    if (!buffer_sz) {
-      napi_throw_error(env, "185", "Empty ArrayBuffer");
+      napi_throw_error(env, ERROR_EMPTY_ARRAY_BUFFER_ERR, ERROR_EMPTY_ARRAY_BUFFER_MSG);
       return NULL;
    }
 
@@ -1313,12 +1313,17 @@ napi_value nanojs_generate_seed(napi_env env, napi_callback_info info)
       return NULL;
    }
 
+   if (filter_no_entropy_util(entropy)) {
+      napi_throw_error(env, NO_ENTROPY_FOUND, NO_ENTROPY_FOUND_MSG);
+      return NULL;
+   }
+
    f_random_attach(gen_rand_no_entropy);
 
    if ((err=f_generate_nano_seed(p=(uint8_t *)(_buf+128), entropy))) {
       sprintf(_buf, "%d", err);
-      sprintf(p, "Can't generate Nano SEED given entropy %s", _buf);
-      napi_throw_error(env, _buf, p);
+      sprintf((char *)p, ERROR_CANT_GENERATE_ENTROPY, f_get_entropy_name(entropy));
+      napi_throw_error(env, (const char *)_buf, (const char *)p);
       return NULL;
    }
 
@@ -1332,6 +1337,344 @@ napi_value nanojs_generate_seed(napi_env env, napi_callback_info info)
    memory_flush();
 
    return res;
+}
+
+#define BIP39_BUFFER_ADJUST (size_t)768
+napi_value nanojs_bip39_to_seed(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[2], res;
+   size_t argc=2, sz_tmp;
+   char *p, *q, *buffer_tmp;
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>2) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<2) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (!(buffer_tmp=malloc(BIP39_BUFFER_ADJUST))) {
+      napi_throw_error(env, NULL, ERROR_FATAL_MALLOC);
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[0], p=buffer_tmp, (BIP39_BUFFER_ADJUST>>1)+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "193", "Can't parse Bip39 to C string");
+      goto nanojs_bip39_to_seed_EXIT1;
+   }
+
+   if (sz_tmp==(BIP39_BUFFER_ADJUST>>1)) {
+      napi_throw_error(env, "194", "Bip39 too long");
+      goto nanojs_bip39_to_seed_EXIT1;
+   }
+
+   p[sz_tmp]=0;
+
+   if (napi_get_value_string_utf8(env, argv[1], q=buffer_tmp+(BIP39_BUFFER_ADJUST>>1), (BIP39_BUFFER_ADJUST>>1)+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_PARSE_FILE_AND_PATH, ERROR_PARSE_FILE_AND_PATH_MSG);
+      goto nanojs_bip39_to_seed_EXIT1;
+   }
+
+   if (sz_tmp==(BIP39_BUFFER_ADJUST>>1)) {
+      napi_throw_error(env, ERROR_FILE_PATH_LONG, ERROR_FILE_PATH_TOO_LONG_MSG);
+      goto nanojs_bip39_to_seed_EXIT1;
+   }
+
+   q[sz_tmp]=0;
+
+   if ((err=f_bip39_to_nano_seed((uint8_t *)(_buf+256), p, q))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, "Can't parse Bip39 to Nano SEED %s", _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
+      goto nanojs_bip39_to_seed_EXIT2;
+   } 
+
+   if (napi_create_string_utf8(env, f_nano_key_to_str(_buf, (unsigned char *)(_buf+256)), NAPI_AUTO_LENGTH, &res)!=napi_ok) {
+      napi_throw_error(env, "198", "Unable to parse extracted Nano SEED to JavaScript");
+      res=NULL;
+   }
+
+   return res;
+
+nanojs_bip39_to_seed_EXIT2:
+   memory_flush();
+
+nanojs_bip39_to_seed_EXIT1:
+   memset(buffer_tmp, 0, BIP39_BUFFER_ADJUST);
+   free(buffer_tmp);
+
+   return NULL;
+}
+
+napi_value nanojs_encrypted_stream_to_seed(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[3], res;
+   size_t argc=3, buffer_sz, sz_tmp;
+   char *p, *q;
+   void *buffer;
+   char *bip39_buffer;
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>3) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<2) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_arraybuffer_info(env, argv[0], &buffer, &buffer_sz)!=napi_ok) {
+      napi_throw_error(env, "199", "Unable to parse ArrayBuffer to open encrypted stream");
+      return NULL;
+   }
+
+   if (!buffer_sz) {
+      napi_throw_error(env, ERROR_EMPTY_ARRAY_BUFFER_ERR, ERROR_EMPTY_ARRAY_BUFFER_MSG);
+      return NULL;
+   }
+
+   if (buffer_sz!=sizeof(F_NANO_CRYPTOWALLET)) {
+      napi_throw_error(env, "500", "Wrong encrypted stream size");
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[1], p=_buf, (sizeof(_buf)>>1)+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_PARSE_PASSWORD, ERROR_CANT_PARSE_PASSWORD_MSG);
+      goto nanojs_encrypted_stream_to_seed_EXIT1;
+   }
+
+   if (!sz_tmp) {
+      napi_throw_error(env, "508", "Empty password");
+      return NULL;
+   }
+
+   if (sz_tmp==(sizeof(_buf)>>1)) {
+      napi_throw_error(env, "509", "Password is too long");
+      return NULL;
+   }
+
+   p[sz_tmp]=0;
+
+   if ((err=f_read_seed((uint8_t *)(q=(_buf+sizeof(_buf)-32)), (const char *)p, buffer, 0, READ_SEED_FROM_STREAM))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, "Internal error. Can't read encrypted stream %s", _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
+      goto nanojs_encrypted_stream_to_seed_EXIT1;
+   }
+
+   if (napi_create_object(env, &res)!=napi_ok) {
+      napi_throw_error(env, "505", "myNanoEmbedded C error. Can't create object in 'nanojs_encrypted_stream_to_seed'");
+      goto nanojs_encrypted_stream_to_seed_EXIT1;
+   }
+
+   bip39_buffer=NULL;
+
+   if (argc==3) {
+      if (!(bip39_buffer=malloc(BIP39_BUFFER_ADJUST))) {
+         napi_throw_error(env, NULL, ERROR_FATAL_MALLOC);
+         goto nanojs_encrypted_stream_to_seed_EXIT1;
+      }
+
+      if (napi_get_value_string_utf8(env, argv[2], p=bip39_buffer+(BIP39_BUFFER_ADJUST>>1), (BIP39_BUFFER_ADJUST>>1)+1, &sz_tmp)!=napi_ok) {
+         napi_throw_error(env, ERROR_PARSE_FILE_AND_PATH, ERROR_PARSE_FILE_AND_PATH_MSG);
+         goto nanojs_encrypted_stream_to_seed_EXIT2;
+      }
+
+      if (sz_tmp==(BIP39_BUFFER_ADJUST>>1)) {
+         napi_throw_error(env, ERROR_FILE_PATH_LONG, ERROR_FILE_PATH_TOO_LONG_MSG);
+         goto nanojs_encrypted_stream_to_seed_EXIT2;
+      }
+
+      if ((err=f_nano_seed_to_bip39(bip39_buffer, (BIP39_BUFFER_ADJUST>>1), &sz_tmp, (uint8_t *)q, p))) {
+         sprintf(_buf, "%d", err);
+         sprintf(_buf+128, "Internal error. Can't parse binary seed to Bip39 %s", _buf);
+         napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
+         goto nanojs_encrypted_stream_to_seed_EXIT2;
+      }
+
+      if (napi_create_string_utf8(env, bip39_buffer, sz_tmp, &argv[1])!=napi_ok) {
+         napi_throw_error(env, "503", "Unable to parse extracted Bip39 to JSON parameter");
+         goto nanojs_encrypted_stream_to_seed_EXIT2;
+      }
+
+   }
+
+   if (napi_create_string_utf8(env, f_nano_key_to_str(_buf, (unsigned char *)q), 64, &argv[0])!=napi_ok) {
+      napi_throw_error(env, "504", "Unable to parse extracted Nano SEED to JSON parameter");
+      goto nanojs_encrypted_stream_to_seed_EXIT3;
+   }
+
+   if (napi_set_named_property(env, res, "seed", argv[0])!=napi_ok) {
+      napi_throw_error(env, "506", "myNanoEmbedded C error. Can't set 'seed' property to 'nanojs_encrypted_stream_to_seed'");
+      goto nanojs_encrypted_stream_to_seed_EXIT3;
+   }
+
+   if (!bip39_buffer)
+      goto nanojs_encrypted_stream_to_seed_EXIT4;
+
+   if (napi_set_named_property(env, res, "bip39", argv[1])!=napi_ok) {
+      napi_throw_error(env, "507", "myNanoEmbedded C error. Can't set 'bip39' property to 'nanojs_encrypted_stream_to_seed'");
+      goto nanojs_encrypted_stream_to_seed_EXIT2;
+   }
+
+   memset(bip39_buffer, 0, BIP39_BUFFER_ADJUST);
+   free(bip39_buffer);
+
+nanojs_encrypted_stream_to_seed_EXIT4:
+   memory_flush();
+   return res;
+
+nanojs_encrypted_stream_to_seed_EXIT3:
+   if (bip39_buffer) {
+nanojs_encrypted_stream_to_seed_EXIT2:
+      memset(bip39_buffer, 0, BIP39_BUFFER_ADJUST);
+      free(bip39_buffer);
+   }
+
+nanojs_encrypted_stream_to_seed_EXIT1:
+   memory_flush();
+   return NULL;
+}
+
+napi_value nanojs_gen_seed_to_encrypted_stream(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[2], res;
+   size_t argc=2, buffer_sz;
+   char *p, *buffer;
+   uint32_t entropy;
+   uint8_t *encrypted_stream;
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>2) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<2) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   entropy=0;
+
+   if (napi_get_value_string_utf8(env, argv[0], p=_buf+128, 65+1, &buffer_sz)==napi_ok) {
+      if (buffer_sz!=64) {
+         napi_throw_error(env, ERROR_WRONG_NANO_SEED_SIZE, ERROR_WRONG_NANO_SEED_SIZE_MSG);
+         goto nanojs_gen_seed_to_encrypted_stream_EXIT1;
+      }
+
+      p[64]=0;
+
+      if ((err=f_str_to_hex((uint8_t *)(buffer=_buf), p))) {
+         sprintf(_buf, "%d", err);
+         napi_throw_error(env, (const char *)_buf, ERROR_CANT_CONVERT_NANO_SEED_TO_BINARY);
+         goto nanojs_gen_seed_to_encrypted_stream_EXIT1;
+      }
+   } else if (napi_get_arraybuffer_info(env, argv[0], (void **)&buffer, &buffer_sz)==napi_ok) {
+      if (buffer_sz!=32) {
+         napi_throw_error(env, "510", ERROR_WRONG_NANO_SEED_SIZE_MSG);
+         goto nanojs_gen_seed_to_encrypted_stream_EXIT1;
+      }
+   } else if (napi_get_value_uint32(env, argv[0], &entropy)!=napi_ok) {
+      napi_throw_error(env, "511", "Can't determine SEED|ArrayBuffer binary Seed|Entropy");
+      return NULL;
+   } else if (!entropy) {
+      napi_throw_error(env, "512", "Forbidden entropy value");
+      return NULL;
+   }
+
+   if (entropy) {
+
+      if (filter_no_entropy_util(entropy)) {
+         napi_throw_error(env, NO_ENTROPY_FOUND, NO_ENTROPY_FOUND_MSG);
+         return NULL;
+      }
+
+      f_random_attach(gen_rand_no_entropy);
+
+      if ((err=f_generate_nano_seed((uint8_t *)(buffer=_buf), entropy))) {
+         sprintf(_buf, "%d", err);
+         sprintf(p=(_buf+128), ERROR_CANT_GENERATE_ENTROPY, f_get_entropy_name(entropy));
+         napi_throw_error(env, (const char *)_buf, (const char *)p);
+      }
+
+      f_random_detach();
+
+      if (err)
+         return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[1], p=_buf+32, (sizeof(_buf)-32)+1, &buffer_sz)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_PARSE_PASSWORD, ERROR_CANT_PARSE_PASSWORD_MSG);
+      goto nanojs_gen_seed_to_encrypted_stream_EXIT1;
+   }
+
+   p[buffer_sz]=0;
+
+   if ((err=f_pass_must_have_at_least(p, (sizeof(_buf)-32), MIN_PASSWORD_SZ, (sizeof(_buf)-32)-1, PASS_MUST_HAVE))) {
+      sprintf(_buf, "%d", err*=-1);
+      napi_throw_error(env, (const char *)_buf, (const char *)verify_password_util(_buf+128, err));
+      goto nanojs_gen_seed_to_encrypted_stream_EXIT1;
+   }
+
+   if (!(encrypted_stream=malloc(sizeof(F_NANO_CRYPTOWALLET)))) {
+      napi_throw_error(env, NULL, ERROR_FATAL_MALLOC);
+      goto nanojs_gen_seed_to_encrypted_stream_EXIT1;
+   }
+
+   if ((err=f_write_seed(encrypted_stream, WRITE_SEED_TO_STREAM, (uint8_t *)buffer, p))) {
+      sprintf(_buf, "%d", err);
+      sprintf(p, "Can't write encrypted Nano Seed to memory %s", _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)p);
+      goto nanojs_gen_seed_to_encrypted_stream_EXIT2;
+   }
+
+   if (napi_create_arraybuffer(env, sizeof(F_NANO_CRYPTOWALLET), (void **)&buffer, &res)!=napi_ok) {
+      napi_throw_error(env, "513", "Can't create array buffer to store encrypted Nano Block");
+      goto nanojs_gen_seed_to_encrypted_stream_EXIT2;
+   }
+
+   if (napi_create_external_arraybuffer(env, memcpy(buffer, encrypted_stream, sizeof(F_NANO_CRYPTOWALLET)),
+      sizeof(F_NANO_CRYPTOWALLET), NULL, NULL, &res)!=napi_ok) {
+
+      napi_throw_error(env, "514", "Can't copy array buffer to store encrypted Nano Block in Javascript ArrayBuffer");
+      res=NULL;
+
+   }
+
+   memset(encrypted_stream, 0, sizeof(F_NANO_CRYPTOWALLET));
+   free(encrypted_stream);
+   memory_flush();
+   return res;
+
+nanojs_gen_seed_to_encrypted_stream_EXIT2:
+   memset(encrypted_stream, 0, sizeof(F_NANO_CRYPTOWALLET));
+   free(encrypted_stream);
+
+nanojs_gen_seed_to_encrypted_stream_EXIT1:
+   memory_flush();
+   return NULL;
 }
 
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
@@ -1350,6 +1693,9 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_get_block_hash", nanojs_get_block_hash},
    {"nanojs_verify_message", nanojs_verify_message},
    {"nanojs_generate_seed", nanojs_generate_seed},
+   {"nanojs_bip39_to_seed", nanojs_bip39_to_seed},
+   {"nanojs_encrypted_stream_to_seed", nanojs_encrypted_stream_to_seed},
+   {"nanojs_gen_seed_to_encrypted_stream", nanojs_gen_seed_to_encrypted_stream},
    {NULL, NULL}
 
 };

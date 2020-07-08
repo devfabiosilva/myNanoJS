@@ -1,6 +1,7 @@
 # Prerequisites
 *.d
 build/
+node_modules
 # Object files
 *.o
 *.ko

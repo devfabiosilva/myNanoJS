@@ -1398,7 +1398,7 @@ napi_value nanojs_bip39_to_seed(napi_env env, napi_callback_info info)
       goto nanojs_bip39_to_seed_EXIT2;
    } 
 
-   if (napi_create_string_utf8(env, f_nano_key_to_str(_buf, (unsigned char *)(_buf+256)), NAPI_AUTO_LENGTH, &res)!=napi_ok) {
+   if (napi_create_string_utf8(env, f_nano_key_to_str(_buf, (unsigned char *)(_buf+256)), 64, &res)!=napi_ok) {
       napi_throw_error(env, "198", "Unable to parse extracted Nano SEED to JavaScript");
       res=NULL;
    }
@@ -1441,11 +1441,6 @@ napi_value nanojs_encrypted_stream_to_seed(napi_env env, napi_callback_info info
 
    if (napi_get_arraybuffer_info(env, argv[0], &buffer, &buffer_sz)!=napi_ok) {
       napi_throw_error(env, "199", "Unable to parse ArrayBuffer to open encrypted stream");
-      return NULL;
-   }
-
-   if (!buffer_sz) {
-      napi_throw_error(env, ERROR_EMPTY_ARRAY_BUFFER_ERR, ERROR_EMPTY_ARRAY_BUFFER_MSG);
       return NULL;
    }
 
@@ -1501,6 +1496,8 @@ napi_value nanojs_encrypted_stream_to_seed(napi_env env, napi_callback_info info
          goto nanojs_encrypted_stream_to_seed_EXIT2;
       }
 
+      p[sz_tmp]=0;
+
       if ((err=f_nano_seed_to_bip39(bip39_buffer, (BIP39_BUFFER_ADJUST>>1), &sz_tmp, (uint8_t *)q, p))) {
          sprintf(_buf, "%d", err);
          sprintf(_buf+128, "Internal error. Can't parse binary seed to Bip39 %s", _buf);
@@ -1530,7 +1527,7 @@ napi_value nanojs_encrypted_stream_to_seed(napi_env env, napi_callback_info info
 
    if (napi_set_named_property(env, res, "bip39", argv[1])!=napi_ok) {
       napi_throw_error(env, "507", "myNanoEmbedded C error. Can't set 'bip39' property to 'nanojs_encrypted_stream_to_seed'");
-      goto nanojs_encrypted_stream_to_seed_EXIT2;
+      res=NULL;
    }
 
    memset(bip39_buffer, 0, BIP39_BUFFER_ADJUST);
@@ -1763,6 +1760,16 @@ MY_NANO_JS_CONST_UINT32_T NANO_UINT32_BRAINWALLET_CONST[] = {
 
 };
 
+MY_NANO_JS_CONST_UINT32_T NANO_UINT32_PASSWORD_STRENGTH_CONST[] = {
+
+   {"PASS_MUST_HAVE_AT_LEAST_ONE_NUMBER", F_PASS_MUST_HAVE_AT_LEAST_ONE_NUMBER},
+   {"PASS_MUST_HAVE_AT_LEAST_ONE_SYMBOL", F_PASS_MUST_HAVE_AT_LEAST_ONE_SYMBOL},
+   {"PASS_MUST_HAVE_AT_LEAST_ONE_UPPER_CASE", F_PASS_MUST_HAVE_AT_LEAST_ONE_UPPER_CASE},
+   {"PASS_MUST_HAVE_AT_LEAST_ONE_LOWER_CASE", F_PASS_MUST_HAVE_AT_LEAST_ONE_LOWER_CASE},
+   {NULL, 0}
+
+};
+
 MY_NANO_JS_CONST_UINT64_T NANO_CONST_UINT64[] = {
 
    {"DEFAULT_THRESHOLD", F_DEFAULT_THRESHOLD},
@@ -1809,6 +1816,13 @@ napi_value Init(napi_env env, napi_value exports)
    if ((err=mynanojs_add_uint64_constant_util(env, exports, NANO_CONST_UINT64))) {
       sprintf(_buf, "%d", err);
       sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_uint64_constant_util", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
+
+   if ((err=mynanojs_add_init_property("PASSWORD_SELECTION", env, exports, mynanojs_add_uint32_constant_util, (void *)NANO_UINT32_PASSWORD_STRENGTH_CONST))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_init_property @ PASSWORD_SELECTION", _buf);
       napi_throw_error(env, _buf, _buf+128);
       return NULL;
    }

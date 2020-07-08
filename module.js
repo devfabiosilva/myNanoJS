@@ -99,10 +99,10 @@ console.log(SEED_TEST_ARRAY_BUFFER);
 const encrypted_result = MY_NANO_JS.nanojs_gen_seed_to_encrypted_stream(SEED_TEST_ARRAY_BUFFER, password_test);
 console.log(encrypted_result);
 console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(encrypted_result, password_test, 'dictionary.dic'));
-
+console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(encrypted_result, password_test));
 const K = MY_NANO_JS.nanojs_gen_seed_to_encrypted_stream(MY_NANO_JS.ENTROPY_TYPE.ENTROPY_TYPE_PARANOIC, password_test);
 console.log(K);
 
 console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(K, password_test, 'dictionary.dic'));
-
+console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(K, password_test));
 

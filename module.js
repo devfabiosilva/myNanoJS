@@ -1,13 +1,30 @@
 const MY_NANO_JS = require('./build/Release/mynanojs');
 
+function stringToArrayBuffer(value) {
+   let uint8;
+   let buffer;
+   let arrayBuffer;
+
+   buffer = Buffer.from(value, 'hex');
+   arrayBuffer = new ArrayBuffer(buffer.length);
+   uint8 = new Uint8Array(arrayBuffer);
+   uint8.set(buffer);
+
+   return arrayBuffer;
+}
+
 //console.log(MY_NANO_JS.nanojs_pow('de0c84215a6b7429d3d2836f54b6b917c9301103134904457a928c56580cf5a4', 4));
 console.log("Fixed 1");
 //console.log(MY_NANO_JS.nanojs_pow('fa0c8b217a6b7429d3d2136f54b6b917c9301103134904457a928c56580cf5a3', 4));
 console.log('Fixed 2');
 console.log(MY_NANO_JS);
 console.log(MY_NANO_JS.nanojs_wallet_to_public_key('xrb_3tta9pdxr4djdcm6r3c7969syoirj3dunrtynmmi8n1qtxzk9iksoz1gxdrh'));
-KEY_PAIR=MY_NANO_JS.nanojs_seed_to_keypair('86A4EBE059446FF84F8C4FAC7C56EF97D16DA7369845051414A0A6DA5EB99FCB', 1728);
+const PRIVATE_KEY='86A4EBE059446FF84F8C4FAC7C56EF97D16DA7369845051414A0A6DA5EB99FCD';
+const PRIVATE_KEY_ARRAY_BUFFER=stringToArrayBuffer(PRIVATE_KEY);
+KEY_PAIR2=MY_NANO_JS.nanojs_seed_to_keypair(PRIVATE_KEY_ARRAY_BUFFER, 1728);
+KEY_PAIR=MY_NANO_JS.nanojs_seed_to_keypair(PRIVATE_KEY, 1728);
 console.log(KEY_PAIR);
+console.log(KEY_PAIR2);
 console.log(MY_NANO_JS.nanojs_add_sub(
 
  "521.1", 
@@ -23,7 +40,7 @@ console.log(MY_NANO_JS.nanojs_extract_seed_from_brainwallet('Regina caeli laetar
 
 A=MY_NANO_JS.nanojs_create_block(
 //'nano_1brainb3zz81wmhxndsbrjb94hx3fhr1fyydmg6iresyk76f3k7y7jiazoji',
-KEY_PAIR.publicKey,
+KEY_PAIR.public_key,
 null,
 'xrb_1xckpezrhg56nuokqh6t1stjca67h37jmrp9qnejjkfgimx1msm9ehuaieuq',
 '0',
@@ -44,12 +61,12 @@ console.log(MY_NANO_JS.nanojs_convert_balance('1.2', MY_NANO_JS.NANO_BIG_NUMBER_
 console.log(MY_NANO_JS.nanojs_convert_balance('2020150000000000000000000000000000', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.RAW_TO_HEX)); //2020.15
 console.log(MY_NANO_JS.nanojs_convert_balance('35.18', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.REAL_TO_HEX)); //000001bc08b5f31a0096b1d9e0000000
 console.log(typeof MY_NANO_JS.nanojs_block_to_JSON);
-B=MY_NANO_JS.nanojs_sign_block(A, `${KEY_PAIR.privateKey}${KEY_PAIR.publicKey}`);
+B=MY_NANO_JS.nanojs_sign_block(A, `${KEY_PAIR.private_key}${KEY_PAIR.public_key}`);
 console.log(MY_NANO_JS.nanojs_block_to_JSON(B));
 console.log(MY_NANO_JS.nanojs_get_block_hash(B));
-console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.publicKey));
-console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.publicKey, MY_NANO_JS.XRB_PREFIX));
-console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.publicKey, MY_NANO_JS.NANO_PREFIX));
+console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.public_key));
+console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.public_key, MY_NANO_JS.XRB_PREFIX));
+console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.public_key, MY_NANO_JS.NANO_PREFIX));
 console.log(KEY_PAIR.publicKey);
 
 HASH='3FF8EC2F80C4082376C8CB771361F98133546AAC70B3AF877DA286E80BC9A7BE';

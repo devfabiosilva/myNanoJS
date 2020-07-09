@@ -72,7 +72,7 @@ napi_value nanojs_wallet_to_public_key(napi_env env, napi_callback_info info)
 
    return res;
 }
-
+/*
 napi_value nanojs_seed_to_keypair(napi_env env, napi_callback_info info)
 {
    int err;
@@ -130,7 +130,7 @@ napi_value nanojs_seed_to_keypair(napi_env env, napi_callback_info info)
    }
 
    if (napi_create_uint32(env, wallet_number, &wn)!=napi_ok) {
-      napi_throw_error(env, "112", "Can't export wallet number");
+      napi_throw_error(env, ERROR_CANT_EXPORT_WALLET_NUMBER, ERROR_CANT_EXPORT_WALLET_NUMBER_MSG);
       goto nanojs_seed_to_nano_wallet_EXIT1;
    }
 
@@ -162,7 +162,7 @@ nanojs_seed_to_nano_wallet_EXIT1:
    return NULL;
 
 }
-
+*/
 napi_value nanojs_add_sub(napi_env env, napi_callback_info info)
 {
    int err;
@@ -948,7 +948,7 @@ napi_value nanojs_convert_balance(napi_env env, napi_callback_info info)
       case HEX_TO_RAW:
          if (sz_tmp>2*sizeof(f_uint128_t)) {
             sprintf(_buf, "Hex string balance length %lu. Nano big number must be 16 bytes long", (unsigned long int)sz_tmp);
-            napi_throw_error(env, "169", p);
+            napi_throw_error(env, "169", _buf);
             return NULL;
          }
 
@@ -1783,7 +1783,130 @@ nanojs_bip39_to_encrypted_stream_EXIT2:
 nanojs_bip39_to_encrypted_stream_EXIT1:
    memset(bip39_buffer, 0, BIP39_BUFFER_ADJUST);
    free(bip39_buffer);
+   return NULL;
+}
+
+napi_value nanojs_seed_to_keypair(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[3], res;
+   size_t argc=3, sz_tmp;
+   uint32_t wallet_number;
+   char *p, *q, *prefix;
+   uint8_t *buffer;
+//seed(hexstr or arraybuffer), wallet_number, prefix(optional)
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>3) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<2) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   buffer=NULL;
+
+   if (napi_get_value_string_utf8(env, argv[0], _buf, sizeof(_buf), &sz_tmp)!=napi_ok) {
+      if (napi_get_arraybuffer_info(env, argv[0], (void **)&buffer, &sz_tmp)!=napi_ok) {
+         napi_throw_error(env, "515", "Can't parse string/array buffer to C binary data");
+         goto nanojs_seed_to_keypair_EXIT1;
+      }
+
+      if (sz_tmp!=32) {
+         napi_throw_error(env, ERROR_WRONG_NANO_SEED_SIZE, ERROR_WRONG_NANO_SEED_SIZE_MSG);
+         goto nanojs_seed_to_keypair_EXIT1;
+      }
+
+      memcpy(_buf, buffer, 32);
+   } else if (sz_tmp!=64) {
+      napi_throw_error(env, ERROR_WRONG_NANO_SEED_SIZE, ERROR_WRONG_NANO_SEED_SIZE_MSG);
+      goto nanojs_seed_to_keypair_EXIT1;
+   } else
+      _buf[64]=0;
+
+   if (napi_get_value_uint32(env, argv[1], &wallet_number)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_EXPORT_WALLET_NUMBER, ERROR_CANT_EXPORT_WALLET_NUMBER_MSG);
+      goto nanojs_seed_to_keypair_EXIT1;
+   }
+
+   if (argc==3) {
+      if (napi_get_value_string_utf8(env, argv[2], prefix=(_buf+96), sizeof(NANO_PREFIX)+1, &sz_tmp)!=napi_ok) {
+         napi_throw_error(env, "516", "Can't parse Nano/Xrb prefix");
+         goto nanojs_seed_to_keypair_EXIT1;
+      }
+
+      if (sz_tmp==sizeof(NANO_PREFIX)) {
+         napi_throw_error(env, "517", "Wrong prefix size");
+         goto nanojs_seed_to_keypair_EXIT1;
+      }
+
+      prefix[sz_tmp]=0;
+   } else
+      prefix=NANO_PREFIX;
+
+   if ((err=seed2keypair_util(_buf, &p, &q, wallet_number, (const char *)prefix, buffer==NULL))) {
+      napi_throw_error(env, p, q);
+      goto nanojs_seed_to_keypair_EXIT1;
+   }
+
+   if (napi_create_object(env, &res)!=napi_ok) {
+      napi_throw_error(env, "518", "myNanoEmbedded C error on creating object in 'nanojs_seed_to_keypair'");
+      goto nanojs_seed_to_keypair_EXIT1;
+   }
+
+   if (napi_create_string_utf8(env, p, 64, &argv[0])!=napi_ok) {
+      napi_throw_error(env, "519", "Unable to parse extracted Private Key to JSON parameter");
+      goto nanojs_seed_to_keypair_EXIT1;
+   }
+
+   if (napi_set_named_property(env, res, "private_key", argv[0])!=napi_ok) {
+      napi_throw_error(env, "520", "myNanoEmbedded C error. Can't set 'private_key' property to 'nanojs_seed_to_keypair'");
+      goto nanojs_seed_to_keypair_EXIT1;
+   }
+
+   if (napi_create_string_utf8(env, q, 64, &argv[1])!=napi_ok) {
+      napi_throw_error(env, "521", "Unable to parse extracted Public Key to JSON parameter");
+      goto nanojs_seed_to_keypair_EXIT1;
+   }
+
+   if (napi_set_named_property(env, res, "public_key", argv[1])!=napi_ok) {
+      napi_throw_error(env, "522", "myNanoEmbedded C error. Can't set 'public_key' property to 'nanojs_seed_to_keypair'");
+      goto nanojs_seed_to_keypair_EXIT1;
+   }
+
+   if (napi_create_uint32(env, wallet_number, &argv[2])!=napi_ok) {
+      napi_throw_error(env, "523", "Unable to parse Wallet Number to JSON parameter");
+      goto nanojs_seed_to_keypair_EXIT1;
+   }
+
+   if (napi_set_named_property(env, res, "wallet_number", argv[2])!=napi_ok) {
+      napi_throw_error(env, "524", "myNanoEmbedded C error. Can't set 'wallet_number' property to 'nanojs_seed_to_keypair'");
+      goto nanojs_seed_to_keypair_EXIT1;
+   }
+
+   if (napi_create_string_utf8(env, _buf, NAPI_AUTO_LENGTH, &argv[2])!=napi_ok) {
+      napi_throw_error(env, "525", "Unable to parse extracted Base32 Nano Wallet to JSON parameter");
+      goto nanojs_seed_to_keypair_EXIT1;
+   }
+
+   if (napi_set_named_property(env, res, "wallet", argv[2])!=napi_ok) {
+      napi_throw_error(env, "526", "myNanoEmbedded C error. Can't set 'wallet' property to 'nanojs_seed_to_keypair'");
+      res=NULL;
+   }
+
+   memory_flush();
    return res;
+
+nanojs_seed_to_keypair_EXIT1:
+   memory_flush();
+   return NULL;
 }
 
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {

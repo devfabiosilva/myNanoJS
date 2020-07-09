@@ -60,6 +60,44 @@ verify_password_util_EXIT1:
    return strcat(text, ">");
 }
 
+int seed2keypair_util(char *buf, char **p, char **q, uint32_t wallet_number, const char *prefix, int is_hexstring)
+{
+   int err;
+// if err -> p = error, q = reason
+// if success -> buf = wallet, p = private key(hexstr), q = public key(hexstr)
+// if private key is hex string then you need verify if size is 128 in length
+   *p=buf+384;
+   *q=buf+256;
+
+   if (is_hexstring) {
+      if ((err=f_str_to_hex((uint8_t *)*p, buf))) {
+         sprintf(*p, "%d", err);
+         sprintf(*q, "Can't parse hexstring to binary to extract keypair %s", *p);
+         return err;
+      }
+
+      memcpy(buf, *p, 32);
+   }
+
+   if ((err=f_seed_to_nano_wallet((uint8_t *)*p, (uint8_t *)*q, (uint8_t *)buf, wallet_number))) {
+      sprintf(*p, "%d", err);
+      sprintf(*q, "Can't extract Nano SEED to KeyPair %s", *p);
+      return err;
+   }
+
+   if ((err=pk_to_wallet(buf, (char *)prefix, memcpy(buf+128, *q, 32)))) {
+      sprintf(*p, "%d", err);
+      sprintf(*q, "Can't extract wallet from public key %s", *p);
+      return err;
+   }
+
+   *p=f_nano_key_to_str(*p-96, (unsigned char *)*p);
+   *q=f_nano_key_to_str(*q-96, (unsigned char *)*q);
+
+   return 0;
+
+}
+
 int filter_no_entropy_util(uint32_t entropy)
 {
    switch (entropy) {

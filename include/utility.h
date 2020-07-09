@@ -50,6 +50,8 @@ static char _buf[F_BUF_CHAR];
 #define ERROR_CANT_PARSE_BIP39_TO_SEED "Can't parse Bip39 to Nano SEED %s"
 #define ERROR_CANT_CREATE_ARRAY_BUFFER_ENC_BLOCK_MSG "Can't create array buffer to store encrypted Nano Block"
 #define ERROR_CANT_CREATE_ARRAY_BUFFER_ENC_BLOCK "513"
+#define ERROR_CANT_EXPORT_WALLET_NUMBER_MSG "Can't export wallet number"
+#define ERROR_CANT_EXPORT_WALLET_NUMBER "112"
 
 #define MIN_PASSWORD_SZ (size_t)18
 #define PASS_MUST_HAVE (int)(F_PASS_MUST_HAVE_AT_LEAST_ONE_NUMBER|F_PASS_MUST_HAVE_AT_LEAST_ONE_SYMBOL|F_PASS_MUST_HAVE_AT_LEAST_ONE_UPPER_CASE|F_PASS_MUST_HAVE_AT_LEAST_ONE_LOWER_CASE)
@@ -93,6 +95,7 @@ void gen_rand_no_entropy(void *, size_t);
 void memory_flush(void);
 char *verify_password_util(char *, int);
 int filter_no_entropy_util(uint32_t);
+int seed2keypair_util(char *, char **, char **, uint32_t, const char *, int);
 int extract_public_key_from_wallet_or_hex_str_util(int *, uint8_t *, char *, size_t);
 int mynanojs_add_nano_function_util(napi_env, napi_value, void *);
 int mynanojs_add_char_constant_util(napi_env, napi_value, void *);

@@ -71,6 +71,7 @@ console.log(MY_NANO_JS.nanojs_verify_message(signature, hashArrayBuffer, wallet_
 //console.log(MY_NANO_JS.nanojs_generate_seed(MY_NANO_JS.ENTROPY_TYPE.ENTROPY_TYPE_NOT_RECOMENDED)); // Worst but fast within milliseconds to generate Random SEED
 //console.log(MY_NANO_JS.nanojs_generate_seed(MY_NANO_JS.ENTROPY_TYPE.ENTROPY_TYPE_PARANOIC)); // Very good but slow 30 s to 2 min to generate Nano SEED
 // Random SEED was designed and implemented using topic 7.12 - Z. S. Spakovszky - 2005 -(https://web.mit.edu/16.unified/www/FALL/thermodynamics/notes/node56.html)[https://web.mit.edu/16.unified/www/FALL/thermodynamics/notes/node56.html]
+console.log('dry umbrella analyst regular resemble belt exercise motor hungry pizza purity convince narrow ancient arrange hard affair cloth pigeon board grain all story income');
 console.log(MY_NANO_JS.nanojs_bip39_to_seed('dry umbrella analyst regular resemble belt exercise motor hungry pizza purity convince narrow ancient arrange hard affair cloth pigeon board grain all story income', 'dictionary.dic')); //43bd84215a6b7429d3d4836f54b6b917c9301103134904457a928c56580cf5a3
 
 encrypted_stream_password = 'myPasswordHere@12345';
@@ -100,9 +101,20 @@ const encrypted_result = MY_NANO_JS.nanojs_gen_seed_to_encrypted_stream(SEED_TES
 console.log(encrypted_result);
 console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(encrypted_result, password_test, 'dictionary.dic'));
 console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(encrypted_result, password_test));
-const K = MY_NANO_JS.nanojs_gen_seed_to_encrypted_stream(MY_NANO_JS.ENTROPY_TYPE.ENTROPY_TYPE_PARANOIC, password_test);
-console.log(K);
+///const K = MY_NANO_JS.nanojs_gen_seed_to_encrypted_stream(MY_NANO_JS.ENTROPY_TYPE.ENTROPY_TYPE_PARANOIC, password_test);
+//console.log(K);
 
-console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(K, password_test, 'dictionary.dic'));
-console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(K, password_test));
+//console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(K, password_test, 'dictionary.dic'));
+//console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(K, password_test));
+
+//const password_test = 'mypasswordherewithallcharhereA@1';
+const bip39str = "bargain method analyst radio resemble belt exercise motor hungry pizza purity convince narrow ancient arrange hard affair fortune gorilla allow grace major stock guess";
+console.log(bip39str);
+const enc_bip39str = MY_NANO_JS.nanojs_bip39_to_encrypted_stream(bip39str, 'dictionary.dic', 'mypasswordherewithallcharhereA@1');
+
+console.log(enc_bip39str);
+
+console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(enc_bip39str, 'mypasswordherewithallcharhereA@1', 'dictionary.dic'));
+
+
 

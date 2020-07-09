@@ -1368,12 +1368,12 @@ napi_value nanojs_bip39_to_seed(napi_env env, napi_callback_info info)
    }
 
    if (napi_get_value_string_utf8(env, argv[0], p=buffer_tmp, (BIP39_BUFFER_ADJUST>>1)+1, &sz_tmp)!=napi_ok) {
-      napi_throw_error(env, "193", "Can't parse Bip39 to C string");
+      napi_throw_error(env, ERROR_CANT_PARSE_BIP39_TO_C_STR, ERROR_CANT_PARSE_BIP39_TO_C_STR_MSG);
       goto nanojs_bip39_to_seed_EXIT1;
    }
 
    if (sz_tmp==(BIP39_BUFFER_ADJUST>>1)) {
-      napi_throw_error(env, "194", "Bip39 too long");
+      napi_throw_error(env, ERROR_BIP39_TOO_LONG, ERROR_BIP39_TOO_LONG_MSG);
       goto nanojs_bip39_to_seed_EXIT1;
    }
 
@@ -1393,7 +1393,7 @@ napi_value nanojs_bip39_to_seed(napi_env env, napi_callback_info info)
 
    if ((err=f_bip39_to_nano_seed((uint8_t *)(_buf+256), p, q))) {
       sprintf(_buf, "%d", err);
-      sprintf(_buf+128, "Can't parse Bip39 to Nano SEED %s", _buf);
+      sprintf(_buf+128, ERROR_CANT_PARSE_BIP39_TO_SEED, _buf);
       napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
       goto nanojs_bip39_to_seed_EXIT2;
    } 
@@ -1455,12 +1455,12 @@ napi_value nanojs_encrypted_stream_to_seed(napi_env env, napi_callback_info info
    }
 
    if (!sz_tmp) {
-      napi_throw_error(env, "508", "Empty password");
+      napi_throw_error(env, ERROR_EMPTY_PASSWORD, ERROR_EMPTY_PASSWORD_MSG);
       return NULL;
    }
 
    if (sz_tmp==(sizeof(_buf)>>1)) {
-      napi_throw_error(env, "509", "Password is too long");
+      napi_throw_error(env, ERROR_PASSWORD_TOO_LONG, ERROR_PASSWORD_TOO_LONG_MSG);
       return NULL;
    }
 
@@ -1648,7 +1648,7 @@ napi_value nanojs_gen_seed_to_encrypted_stream(napi_env env, napi_callback_info 
    }
 
    if (napi_create_arraybuffer(env, sizeof(F_NANO_CRYPTOWALLET), (void **)&buffer, &res)!=napi_ok) {
-      napi_throw_error(env, "513", "Can't create array buffer to store encrypted Nano Block");
+      napi_throw_error(env, ERROR_CANT_CREATE_ARRAY_BUFFER_ENC_BLOCK, ERROR_CANT_CREATE_ARRAY_BUFFER_ENC_BLOCK_MSG);
       goto nanojs_gen_seed_to_encrypted_stream_EXIT2;
    }
 
@@ -1674,6 +1674,118 @@ nanojs_gen_seed_to_encrypted_stream_EXIT1:
    return NULL;
 }
 
+napi_value nanojs_bip39_to_encrypted_stream(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[3], res;
+   size_t argc=3, sz_tmp;
+   char *p, *bip39_buffer, *q;
+   uint8_t *buffer;
+
+// bip39 path password
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>3) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<3) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (!(bip39_buffer=malloc(BIP39_BUFFER_ADJUST))) {
+      napi_throw_error(env, NULL, ERROR_FATAL_MALLOC);
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[2], p=(bip39_buffer+(BIP39_BUFFER_ADJUST>>1)), (BIP39_BUFFER_ADJUST>>1)+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_PARSE_PASSWORD, ERROR_CANT_PARSE_PASSWORD_MSG);
+      goto nanojs_bip39_to_encrypted_stream_EXIT1;
+   }
+
+   if (sz_tmp==(BIP39_BUFFER_ADJUST>>1)) {
+      napi_throw_error(env, ERROR_PASSWORD_TOO_LONG, ERROR_PASSWORD_TOO_LONG_MSG);
+      goto nanojs_bip39_to_encrypted_stream_EXIT1;
+   }
+
+   p[sz_tmp]=0;
+
+   if ((err=f_pass_must_have_at_least(p, (BIP39_BUFFER_ADJUST>>1), MIN_PASSWORD_SZ, (BIP39_BUFFER_ADJUST>>1)-1, PASS_MUST_HAVE))) {
+      sprintf(_buf, "%d", err*=-1);
+      napi_throw_error(env, (const char *)_buf, (const char *)verify_password_util(_buf+128, err));
+      goto nanojs_bip39_to_encrypted_stream_EXIT1;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[0], bip39_buffer, (BIP39_BUFFER_ADJUST>>1)+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_PARSE_BIP39_TO_C_STR, ERROR_CANT_PARSE_BIP39_TO_C_STR_MSG);
+      goto nanojs_bip39_to_encrypted_stream_EXIT1;
+   }
+
+   if (sz_tmp==(BIP39_BUFFER_ADJUST>>1)) {
+      napi_throw_error(env, ERROR_BIP39_TOO_LONG, ERROR_BIP39_TOO_LONG_MSG);
+      goto nanojs_bip39_to_encrypted_stream_EXIT1;
+   }
+
+   bip39_buffer[sz_tmp]=0;
+
+   if (napi_get_value_string_utf8(env, argv[1], q=(_buf+32), (sizeof(_buf)-32)+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_PARSE_BIP39_TO_C_STR, ERROR_CANT_PARSE_BIP39_TO_C_STR_MSG);
+      goto nanojs_bip39_to_encrypted_stream_EXIT2;
+   }
+
+   if (sz_tmp==(sizeof(_buf)-32)) {
+      napi_throw_error(env, ERROR_FILE_PATH_LONG, ERROR_FILE_PATH_TOO_LONG_MSG);
+      goto nanojs_bip39_to_encrypted_stream_EXIT2;
+   }
+
+   q[sz_tmp]=0;
+
+   if ((err=f_bip39_to_nano_seed((uint8_t *)_buf, bip39_buffer, q))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, ERROR_CANT_PARSE_BIP39_TO_SEED, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
+      goto nanojs_bip39_to_encrypted_stream_EXIT2;
+   }
+
+   if ((err=f_write_seed(q, WRITE_SEED_TO_STREAM, (uint8_t *)_buf, p))) {
+      sprintf(_buf, "%d", err);
+      sprintf(q, "Can't write encrypted Bip39 to memory %s", _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)q);
+      goto nanojs_bip39_to_encrypted_stream_EXIT2;
+   }
+
+   if (napi_create_arraybuffer(env, sizeof(F_NANO_CRYPTOWALLET), (void **)&buffer, &res)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_CREATE_ARRAY_BUFFER_ENC_BLOCK, ERROR_CANT_CREATE_ARRAY_BUFFER_ENC_BLOCK_MSG);
+      goto nanojs_bip39_to_encrypted_stream_EXIT2;
+   }
+
+   if (napi_create_external_arraybuffer(env, memcpy(buffer, q, sizeof(F_NANO_CRYPTOWALLET)),
+      sizeof(F_NANO_CRYPTOWALLET), NULL, NULL, &res)!=napi_ok) {
+
+      napi_throw_error(env, "514", "Can't copy array buffer to store encrypted Nano Block in Javascript ArrayBuffer");
+      res=NULL;
+
+   }
+
+   memory_flush();
+   memset(bip39_buffer, 0, BIP39_BUFFER_ADJUST);
+   free(bip39_buffer);
+   return res;
+
+nanojs_bip39_to_encrypted_stream_EXIT2:
+   memory_flush();
+
+nanojs_bip39_to_encrypted_stream_EXIT1:
+   memset(bip39_buffer, 0, BIP39_BUFFER_ADJUST);
+   free(bip39_buffer);
+   return res;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
@@ -1693,6 +1805,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_bip39_to_seed", nanojs_bip39_to_seed},
    {"nanojs_encrypted_stream_to_seed", nanojs_encrypted_stream_to_seed},
    {"nanojs_gen_seed_to_encrypted_stream", nanojs_gen_seed_to_encrypted_stream},
+   {"nanojs_bip39_to_encrypted_stream", nanojs_bip39_to_encrypted_stream},
    {NULL, NULL}
 
 };

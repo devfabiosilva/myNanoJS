@@ -72,97 +72,7 @@ napi_value nanojs_wallet_to_public_key(napi_env env, napi_callback_info info)
 
    return res;
 }
-/*
-napi_value nanojs_seed_to_keypair(napi_env env, napi_callback_info info)
-{
-   int err;
-   napi_value argv[2], res, wn;
-   size_t argc=2, sz_tmp;
-   uint32_t wallet_number;
 
-   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
-      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
-      return NULL;
-   }
-
-   if (argc!=2) {
-      napi_throw_error(env, "107", "Required: Nano SEED and Wallet number");
-      return NULL;
-   }
-
-   if (napi_get_value_uint32(env, argv[1], &wallet_number)!=napi_ok) {
-      napi_throw_error(env, "108", "Wrong wallet number");
-      return NULL;
-   }
-
-   if (napi_get_value_string_utf8(env, argv[0], _buf, sizeof(_buf), &sz_tmp)!=napi_ok) {
-      napi_throw_error(env, "103", "Can't parse Nano SEED to myNanoEmbedded C library");
-      return NULL;
-   }
-
-   if (sz_tmp!=64) {
-      napi_throw_error(env, ERROR_WRONG_NANO_SEED_SIZE, ERROR_WRONG_NANO_SEED_SIZE_MSG);
-      return NULL;
-   }
-
-   _buf[64]=0;
-
-   if ((err=f_str_to_hex((uint8_t *)(_buf+128), _buf))) {
-      sprintf(_buf, "%d", err);
-      napi_throw_error(env, _buf, ERROR_CANT_CONVERT_NANO_SEED_TO_BINARY);
-      goto nanojs_seed_to_nano_wallet_EXIT1;
-   }
-
-   if ((err=f_seed_to_nano_wallet((uint8_t *)_buf, (uint8_t *)(_buf+64), (uint8_t *)(_buf+128), wallet_number))) {
-      sprintf(_buf, "%d", err);
-      napi_throw_error(env, _buf, "Can't extract wallet number");
-      goto nanojs_seed_to_nano_wallet_EXIT1;
-   }
-
-   if (napi_create_string_utf8(env, (const char *)f_nano_key_to_str((_buf+128), (unsigned char *)_buf), 64, &argv[0])!=napi_ok) {
-      napi_throw_error(env, "110", "Can't export private key from Nano SEED");
-      goto nanojs_seed_to_nano_wallet_EXIT1;
-   }
-
-   if (napi_create_string_utf8(env, (const char *)f_nano_key_to_str((_buf+128), (unsigned char *)(_buf+64)), 64, &argv[1])!=napi_ok) {
-      napi_throw_error(env, "111", "Can't export private key from Nano SEED");
-      goto nanojs_seed_to_nano_wallet_EXIT1;
-   }
-
-   if (napi_create_uint32(env, wallet_number, &wn)!=napi_ok) {
-      napi_throw_error(env, ERROR_CANT_EXPORT_WALLET_NUMBER, ERROR_CANT_EXPORT_WALLET_NUMBER_MSG);
-      goto nanojs_seed_to_nano_wallet_EXIT1;
-   }
-
-   if (napi_create_object(env, &res)!=napi_ok) {
-      napi_throw_error(env, "104", "myNanoEmbedded C error. Can't create object in 'nanojs_seed_to_nano_wallet'");
-      goto nanojs_seed_to_nano_wallet_EXIT1;
-   }
-
-   if (napi_set_named_property(env, res, "walletNumber", wn)!=napi_ok) {
-      napi_throw_error(env, "113", "myNanoEmbedded C error. Can't set walletNumber property to 'nanojs_seed_to_nano_wallet'");
-      goto nanojs_seed_to_nano_wallet_EXIT1;
-   }
-
-   if (napi_set_named_property(env, res, "privateKey", argv[0])!=napi_ok) {
-      napi_throw_error(env, "105", "myNanoEmbedded C error. Can't set privateKey property to 'nanojs_seed_to_nano_wallet'");
-      goto nanojs_seed_to_nano_wallet_EXIT1;
-   }
-
-   if (napi_set_named_property(env, res, "publicKey", argv[1])!=napi_ok) {
-      napi_throw_error(env, "109", "myNanoEmbedded C error. Can't set publicKey property to 'nanojs_seed_to_nano_wallet'");
-      goto nanojs_seed_to_nano_wallet_EXIT1;
-   }
-
-   memory_flush();
-   return res;
-
-nanojs_seed_to_nano_wallet_EXIT1:
-   memory_flush();
-   return NULL;
-
-}
-*/
 napi_value nanojs_add_sub(napi_env env, napi_callback_info info)
 {
    int err;
@@ -428,9 +338,9 @@ napi_value nanojs_extract_seed_from_brainwallet(napi_env env, napi_callback_info
       goto nanojs_extract_seed_from_brainwallet_EXIT1;
    }
 
-   if (napi_set_named_property(env, res, "warningMessage", argv[1])!=napi_ok) {
+   if (napi_set_named_property(env, res, "warning_message", argv[1])!=napi_ok) {
       napi_throw_error(env, "141", "myNanoEmbedded C error. Can't set 'warningMessage' property to 'nanojs_seed_to_nano_wallet'");
-      goto nanojs_extract_seed_from_brainwallet_EXIT1;
+      res=NULL;
    }
 
    memory_flush();
@@ -1091,6 +1001,7 @@ napi_value nanojs_public_key_to_wallet(napi_env env, napi_callback_info info)
    napi_value argv[2], res;
    size_t argc=2, sz_tmp;
    char *prefix, *p;
+   void *buffer;
 
    if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
       napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
@@ -1119,22 +1030,29 @@ napi_value nanojs_public_key_to_wallet(napi_env env, napi_callback_info info)
       return NULL;
    }
 
-   if (napi_get_value_string_utf8(env, argv[0], p=(_buf+256), 66, &sz_tmp)!=napi_ok) {
-      napi_throw_error(env, "180", "Can't parse string hex public key");
-      return NULL;
-   }
+   if (napi_get_value_string_utf8(env, argv[0], p=(_buf+256), (65+1), &sz_tmp)==napi_ok) {
+      if (sz_tmp!=64) {
+         sprintf(_buf, "%lu", (unsigned long int)sz_tmp);
+         sprintf(p, "Wrong hex public key size %s", _buf);
+         napi_throw_error(env, _buf, p);
+         return NULL;
+      }
 
-   if (sz_tmp!=64) {
-      sprintf(_buf, "%lu", (unsigned long int)sz_tmp);
-      sprintf(p, "Wrong hex public key size %s", _buf);
-      napi_throw_error(env, _buf, p);
-      return NULL;
-   }
+      p[64]=0;
 
-   p[64]=0;
+      if ((err=f_str_to_hex((uint8_t *)_buf, p))) {
+         napi_throw_error(env, "181", "Can't convert hex string public key to hex binary public key");
+         return NULL;
+      }
+   } else if (napi_get_arraybuffer_info(env, argv[0], &buffer, &sz_tmp)==napi_ok) {
+      if (sz_tmp!=32) {
+         napi_throw_error(env, "98", "Can't parse ArrayBuffer public key");
+         return NULL;
+      }
 
-   if ((err=f_str_to_hex((uint8_t *)_buf, p))) {
-      napi_throw_error(env, "181", "Can't convert hex string public key to hex binary public key");
+      memcpy(_buf, buffer, 32);
+   } else {
+      napi_throw_error(env, "180", "Can't parse string hex/ArrayBuffer public key");
       return NULL;
    }
 
@@ -1909,6 +1827,125 @@ nanojs_seed_to_keypair_EXIT1:
    return NULL;
 }
 
+napi_value nanojs_compare(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[4], res;
+   size_t argc=4, sz_tmp, sz_tmp2;
+   char *a, *b;
+   uint32_t mode_compare, compare_result;
+   void *buffer;
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>4) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<4) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_value_uint32(env, argv[2], &mode_compare)!=napi_ok) {
+      napi_throw_error(env, "531", "Can't parse type and comparison values");
+      return NULL;
+   }
+
+   if (mode_compare&(~(F_NANO_A_RAW_128|F_NANO_A_RAW_STRING|F_NANO_A_REAL_STRING|F_NANO_B_RAW_128|F_NANO_B_RAW_STRING|F_NANO_B_REAL_STRING))) {
+      napi_throw_error(env, "532", "Invalid compare values A and/or B");
+      return NULL;
+   }
+
+   if (mode_compare&F_NANO_A_RAW_128) {
+      if (napi_get_arraybuffer_info(env, argv[0], &buffer, &sz_tmp)!=napi_ok) {
+         napi_throw_error(env, "528", "Can't parse Nano A value ArrayBuffer");
+         return NULL;
+      }
+
+      if (sz_tmp>sizeof(f_uint128_t)) {
+         napi_throw_error(env, "529", "Binary hex A big number exceeds maximum precision");
+         return NULL;
+      }
+
+      if ((sz_tmp2=(sizeof(f_uint128_t)-sz_tmp))) {
+         memset(a=_buf, 0, sz_tmp2);
+         memcpy(a+sz_tmp2, buffer, sz_tmp);
+      } else
+         a=(char *)buffer;
+   } else {
+      if (napi_get_value_string_utf8(env, argv[0], a=_buf, (F_RAW_STR_MAX_SZ+1), &sz_tmp)!=napi_ok) {
+         napi_throw_error(env, "530", "Can't parse Nano A value");
+         return NULL;
+      }
+
+      if (sz_tmp==F_RAW_STR_MAX_SZ) {
+         napi_throw_error(env, "533", "Nano A string exceeds maximum length");
+         return NULL;
+      }
+
+      a[sz_tmp]=0;
+   }
+
+   if (mode_compare&F_NANO_B_RAW_128) {
+      if (napi_get_arraybuffer_info(env, argv[1], &buffer, &sz_tmp)!=napi_ok) {
+         napi_throw_error(env, "534", "Can't parse Nano B value ArrayBuffer");
+         return NULL;
+      }
+
+      if (sz_tmp>sizeof(f_uint128_t)) {
+         napi_throw_error(env, "535", "Binary hex B big number exceeds maximum precision");
+         return NULL;
+      }
+
+      if ((sz_tmp2=(sizeof(f_uint128_t)-sz_tmp))) {
+         memset(b=_buf, 0, sz_tmp2);
+         memcpy(b+sz_tmp2, buffer, sz_tmp);
+      } else
+         b=(char *)buffer;
+   } else {
+      if (napi_get_value_string_utf8(env, argv[1], b=(_buf+F_RAW_STR_MAX_SZ), (F_RAW_STR_MAX_SZ+1), &sz_tmp)!=napi_ok) {
+         napi_throw_error(env, "536", "Can't parse Nano B value");
+         return NULL;
+      }
+
+      if (sz_tmp==F_RAW_STR_MAX_SZ) {
+         napi_throw_error(env, "537", "Nano B string exceeds maximum length");
+         return NULL;
+      }
+
+      b[sz_tmp]=0;
+   }
+
+   if (napi_get_value_uint32(env, argv[3], &compare_result)!=napi_ok) {
+      napi_throw_error(env, "538", "Can't parse comparison");
+      return NULL;
+   }
+
+   if (compare_result&(~(F_NANO_COMPARE_LT|F_NANO_COMPARE_EQ|F_NANO_COMPARE_GT))) {
+      napi_throw_error(env, "539", "Invalid comparison parameter");
+      return NULL;
+   }
+
+   if ((err=f_nano_value_compare_value(a, b, &mode_compare))) {
+      sprintf(a, "%d", err);
+      sprintf(b, "Could not perform a Big number compare %s", a);
+      napi_throw_error(env, (const char *)a, (const char *)b);
+      return NULL;
+   }
+
+   if (napi_get_boolean(env, (bool)((mode_compare&compare_result)>0), &res)!=napi_ok) {
+      napi_throw_error(env, "540", "Can't determine big number comparison");
+      res=NULL;
+   }
+
+   return res;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
@@ -1929,6 +1966,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_encrypted_stream_to_seed", nanojs_encrypted_stream_to_seed},
    {"nanojs_gen_seed_to_encrypted_stream", nanojs_gen_seed_to_encrypted_stream},
    {"nanojs_bip39_to_encrypted_stream", nanojs_bip39_to_encrypted_stream},
+   {"nanojs_compare", nanojs_compare},
    {NULL, NULL}
 
 };
@@ -2024,6 +2062,17 @@ MY_NANO_JS_CONST_UINT32_T NANO_UINT32_ENTROPY_CONST[] = {
 
 };
 
+MY_NANO_JS_CONST_UINT32_T NANO_UINT32_BIG_NUMBER_CONDITIONAL_CONST[] = {
+
+   {"NANO_COMPARE_EQ", F_NANO_COMPARE_EQ},
+   {"NANO_COMPARE_LT", F_NANO_COMPARE_LT},
+   {"NANO_COMPARE_LEQ", F_NANO_COMPARE_LEQ},
+   {"NANO_COMPARE_GT", F_NANO_COMPARE_GT},
+   {"NANO_COMPARE_GEQ", F_NANO_COMPARE_GEQ},
+   {NULL, 0}
+
+};
+
 napi_value Init(napi_env env, napi_value exports)
 {
    int err;
@@ -2066,6 +2115,14 @@ napi_value Init(napi_env env, napi_value exports)
    if ((err=mynanojs_add_init_property("NANO_BIG_NUMBER_TYPE", env, exports, mynanojs_add_uint32_constant_util, (void *)NANO_UINT32_BIG_NUMBER_CONST))) {
       sprintf(_buf, "%d", err);
       sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_init_property @ NANO_BIG_NUMBER_TYPE", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
+
+   if ((err=mynanojs_add_init_property("NANO_BIG_NUMBER_CONDITIONAL", env, exports, mynanojs_add_uint32_constant_util, 
+      (void *)NANO_UINT32_BIG_NUMBER_CONDITIONAL_CONST))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_init_property @ NANO_BIG_NUMBER_CONDITIONAL", _buf);
       napi_throw_error(env, _buf, _buf+128);
       return NULL;
    }

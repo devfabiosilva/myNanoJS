@@ -64,6 +64,7 @@ console.log(typeof MY_NANO_JS.nanojs_block_to_JSON);
 B=MY_NANO_JS.nanojs_sign_block(A, `${KEY_PAIR.private_key}${KEY_PAIR.public_key}`);
 console.log(MY_NANO_JS.nanojs_block_to_JSON(B));
 console.log(MY_NANO_JS.nanojs_get_block_hash(B));
+console.log(MY_NANO_JS.nanojs_public_key_to_wallet(stringToArrayBuffer(KEY_PAIR.public_key)));
 console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.public_key));
 console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.public_key, MY_NANO_JS.XRB_PREFIX));
 console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.public_key, MY_NANO_JS.NANO_PREFIX));

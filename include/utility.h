@@ -52,6 +52,20 @@ static char _buf[F_BUF_CHAR];
 #define ERROR_CANT_CREATE_ARRAY_BUFFER_ENC_BLOCK "513"
 #define ERROR_CANT_EXPORT_WALLET_NUMBER_MSG "Can't export wallet number"
 #define ERROR_CANT_EXPORT_WALLET_NUMBER "112"
+#define ERROR_CANT_PARSE_ENCRIPTED_STREAM_TO_ARRAY_BUFFER_MSG "Can't copy array buffer to store encrypted Nano Block in Javascript ArrayBuffer"
+#define ERROR_CANT_PARSE_ENCRIPTED_STREAM_TO_ARRAY_BUFFER "514"
+#define ERROR_INTERNAL_C_FUNCTION_CREATE_OBJECT_MSG "Error in internal C function 'create_object_keypair_util' %s"
+#define ERROR_CANT_READ_ENCRYPTED_STREAM "Internal error. Can't read encrypted stream %s"
+#define ERROR_UNABLE_TO_PARSE_ARRAY_BUFFER_TO_ENCRTYPTED_STREAM_MSG "Unable to parse ArrayBuffer to open encrypted stream"
+#define ERROR_UNABLE_TO_PARSE_ARRAY_BUFFER_TO_ENCRTYPTED_STREAM "199"
+#define ERROR_WRONG_ENCRYPTED_STREAM_SIZE_MSG "Wrong encrypted stream size"
+#define ERROR_WRONG_ENCRYPTED_STREAM_SIZE "500"
+#define ERROR_CANT_PARSE_NANO_XRB_PREFIX_MSG "Can't parse Nano/Xrb prefix"
+#define ERROR_CANT_PARSE_NANO_XRB_PREFIX "516"
+#define ERROR_WRONG_PREFIX_SIZE_MSG "Wrong prefix size"
+#define ERROR_WRONG_PREFIX_SIZE "517"
+#define ERROR_CREATING_OBJECT_MSG "myNanoEmbedded C error on creating object"
+#define ERROR_CREATING_OBJECT "518"
 
 #define MIN_PASSWORD_SZ (size_t)18
 #define PASS_MUST_HAVE (int)(F_PASS_MUST_HAVE_AT_LEAST_ONE_NUMBER|F_PASS_MUST_HAVE_AT_LEAST_ONE_SYMBOL|F_PASS_MUST_HAVE_AT_LEAST_ONE_UPPER_CASE|F_PASS_MUST_HAVE_AT_LEAST_ONE_LOWER_CASE)
@@ -96,6 +110,7 @@ void memory_flush(void);
 char *verify_password_util(char *, int);
 int filter_no_entropy_util(uint32_t);
 int seed2keypair_util(char *, char **, char **, uint32_t, const char *, int);
+int create_object_keypair_util(napi_env, napi_value, char *, char *, uint32_t, char *);
 int extract_public_key_from_wallet_or_hex_str_util(int *, uint8_t *, char *, size_t);
 int mynanojs_add_nano_function_util(napi_env, napi_value, void *);
 int mynanojs_add_char_constant_util(napi_env, napi_value, void *);

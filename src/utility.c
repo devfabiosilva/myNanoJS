@@ -98,6 +98,37 @@ int seed2keypair_util(char *buf, char **p, char **q, uint32_t wallet_number, con
 
 }
 
+int create_object_keypair_util(napi_env env, napi_value res, char *private_key, char *public_key, uint32_t wallet_number, char *wallet)
+{
+   napi_value tmp;
+
+   if (napi_create_string_utf8(env, private_key, 64, &tmp)!=napi_ok)
+      return 31;
+
+   if (napi_set_named_property(env, res, "private_key", tmp)!=napi_ok)
+      return 32;
+
+   if (napi_create_string_utf8(env, public_key, 64, &tmp)!=napi_ok)
+      return 33;
+
+   if (napi_set_named_property(env, res, "public_key", tmp)!=napi_ok)
+      return 34;
+
+   if (napi_create_uint32(env, wallet_number, &tmp)!=napi_ok)
+      return 35;
+
+   if (napi_set_named_property(env, res, "wallet_number", tmp)!=napi_ok)
+      return 36;
+
+   if (napi_create_string_utf8(env, wallet, NAPI_AUTO_LENGTH, &tmp)!=napi_ok)
+      return 37;
+
+   if (napi_set_named_property(env, res, "wallet", tmp)!=napi_ok)
+      return 38;
+
+   return 0;
+}
+
 int filter_no_entropy_util(uint32_t entropy)
 {
    switch (entropy) {

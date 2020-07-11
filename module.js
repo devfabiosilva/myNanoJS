@@ -1,3 +1,4 @@
+
 const MY_NANO_JS = require('./build/Release/mynanojs');
 
 function stringToArrayBuffer(value) {
@@ -12,6 +13,84 @@ function stringToArrayBuffer(value) {
 
    return arrayBuffer;
 }
+
+console.log(
+MY_NANO_JS.nanojs_compare(
+stringToArrayBuffer('00009d632382e95f9ed7ce322c800000'), //3192.1928861 Big Number in hex 
+'3182', // Real value
+MY_NANO_JS.NANO_BIG_NUMBER_TYPE.NANO_A_RAW_128+MY_NANO_JS.NANO_BIG_NUMBER_TYPE.NANO_B_REAL_STRING,
+MY_NANO_JS.NANO_BIG_NUMBER_CONDITIONAL.NANO_COMPARE_LT)); // (3192.1928861 <= 3182) = false
+
+console.log(
+MY_NANO_JS.nanojs_compare(
+'001.0000', // Real value
+'1000000000000000000000000000000', // 1.0 (Raw Value)
+MY_NANO_JS.NANO_BIG_NUMBER_TYPE.NANO_A_REAL_STRING+MY_NANO_JS.NANO_BIG_NUMBER_TYPE.NANO_B_RAW_STRING,
+MY_NANO_JS.NANO_BIG_NUMBER_CONDITIONAL.NANO_COMPARE_EQ)); //(1.0 === 1.0) = true
+
+
+console.log(MY_NANO_JS.nanojs_compare(
+stringToArrayBuffer('10'), //0.000000000000000000000000000016 Big Number in hex 
+'0.000000000000000000000000000016', // Real value
+MY_NANO_JS.NANO_BIG_NUMBER_TYPE.NANO_A_RAW_128+MY_NANO_JS.NANO_BIG_NUMBER_TYPE.NANO_B_REAL_STRING,
+MY_NANO_JS.NANO_BIG_NUMBER_CONDITIONAL.NANO_COMPARE_LEQ)); // (0.000000000000000000000000000016 <= 0.000000000000000000000000000016) = true
+
+console.log(
+MY_NANO_JS.nanojs_compare(
+'001.0001', // Real value
+'1000000000000000000000000000000', // 1.0 (Raw Value)
+MY_NANO_JS.NANO_BIG_NUMBER_TYPE.NANO_A_REAL_STRING+MY_NANO_JS.NANO_BIG_NUMBER_TYPE.NANO_B_RAW_STRING,
+MY_NANO_JS.NANO_BIG_NUMBER_CONDITIONAL.NANO_COMPARE_EQ)); //(1.0001 === 1.0) = false
+console.log('a');
+console.log(MY_NANO_JS.nanojs_convert_balance('1000000000000000000000000000000')); //1.0
+console.log('b');
+console.log(MY_NANO_JS.nanojs_convert_balance(stringToArrayBuffer('1f'), MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_RAW)); //256
+console.log('c');
+console.log(MY_NANO_JS.nanojs_convert_balance(stringToArrayBuffer('1F'), MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_REAL)); //0.000000000000000000000000000496
+console.log('d');
+console.log(MY_NANO_JS.nanojs_convert_balance(stringToArrayBuffer('00009d632382e95f9ed7ce322c800000'), MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_REAL)); //3192.1928861
+console.log('e');
+console.log(MY_NANO_JS.nanojs_convert_balance('1.2', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.REAL_TO_HEX)); //0000000f2568bc2d21591d7f80000000
+console.log('f');
+console.log(MY_NANO_JS.nanojs_convert_balance('2020150000000000000000000000000000', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.RAW_TO_HEX)); //2020.15
+console.log('g');
+console.log(MY_NANO_JS.nanojs_convert_balance('35.18', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.REAL_TO_HEX)); //000001bc08b5f31a0096b1d9e0000000
+console.log('h');
+console.log(MY_NANO_JS.nanojs_convert_balance('1200000000000000000000000000000', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.RAW_TO_REAL)); //1.0
+console.log('i');
+console.log(MY_NANO_JS.nanojs_convert_balance('1527.212981661', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.REAL_TO_RAW)); //1.0
+
+const ENCRYPTED_BLOCK = stringToArrayBuffer('5f6e616e6f77616c6c657466696c655f000001004e414e4f205365656420456e637279707465642066696c652f73747265616d2e204b656570206974207361666520616e64206261636b75702069742e20546869732066696c652069732070726f7465637465642062792070617373776f72642e2042555920424954434f494e20616e64204e414e4f2021212100a6e2e890abc0f898203aa12a5e0e83307365c473c58c82184b204feb68bd47ebac15ae55e8f97bf005443a2e0dd5f6486c5f8c76605ac95169f05d45c3f36901ac1fa2bc11a694cd07895f016f768910e7ed53f7a22a62767eb6dabdae16ef3d9592b8f518b802566779a94ce73b36c8cb388d648d8cea56de005eee999f6d1e01dc4dc81317dfd49f66a28cc9515c8aa1a15194a0fb3824ed8a3554c897bad29bd49eeaa84558fc4d49adc68ef7a6767d317835a48a4c45c276bb7283ac3054a2e1708d8ccf8188532cd909ff5352a38377');
+const ENCRYPTED_BLOCK_PASSWORD = 'MyPasswordHere@1';
+
+console.log(MY_NANO_JS.nanojs_encrypted_stream_to_key_pair(ENCRYPTED_BLOCK, ENCRYPTED_BLOCK_PASSWORD, 320));
+/*
+{
+  private_key: 'BBE0D5AD30C2E8B1EFC3299E5C30FDD168CFE692F5C9401FBAD47C8EECCA2334',
+  public_key: 'C4B8BBCE2151B3C8F0BEA28C62BF4593A0034240E1ED9A32DC1C3EF64337BB5F',
+  wallet_number: 320,
+  wallet: 'nano_3j7rqh944nfms5rdxaneecznd6x11f363rhfmasfr93yys3mhgtz5s57unn3'
+}
+*/
+
+console.log(MY_NANO_JS.nanojs_encrypted_stream_to_key_pair(ENCRYPTED_BLOCK, ENCRYPTED_BLOCK_PASSWORD, 0, MY_NANO_JS.NANO_PREFIX));
+/*
+{
+  private_key: 'E7F9FAC6BEE76D7F13A9D047210B7154EA6C6B64817D3DF52E28B6F1A3095B11',
+  public_key: '94D086DC3C29F3C6AA6ED2D10EDA87D923EC8B7BC08A72C2F0E965CA7488A9D1',
+  wallet_number: 0,
+  wallet: 'nano_378iiug5rchmrto8xnpj3ufahpb5xk7qqi6cgd3h3td7sbtajcgjbp6nu5zh'
+}
+*/
+console.log(MY_NANO_JS.nanojs_encrypted_stream_to_key_pair(ENCRYPTED_BLOCK, ENCRYPTED_BLOCK_PASSWORD, 1, MY_NANO_JS.XRB_PREFIX));
+/*
+{
+  private_key: '14E8B9DD512BC3AA9787D8CFED2BF586D6C92376C7F120E10962AF7E0E0F1C9B',
+  public_key: 'D36563C9E85A3738FDDD6330505DEEABEA27318AFB654157DD7C4A579EAB3106',
+  wallet_number: 1,
+  wallet: 'xrb_3nu7eh6yipjq95yxtrsic3gyxczc6wrroyu7a7dxtz4ccyhcpea83bnkh4rf'
+}
+*/
 
 //console.log(MY_NANO_JS.nanojs_pow('de0c84215a6b7429d3d2836f54b6b917c9301103134904457a928c56580cf5a4', 4));
 console.log("Fixed 1");
@@ -82,7 +161,7 @@ hashUint8Array.set(hashBuffer);
 
 console.log(hashUint8Array);
 console.log(hashArrayBuffer);
-
+/*
 console.log(MY_NANO_JS.nanojs_verify_message(signature, hashArrayBuffer, wallet)); // return true
 //console.log(MY_NANO_JS.nanojs_wallet_to_public_key('nano_3xinwsdt57qo5bcysock15do87r9fuepq84erab5udm6wekymq9e9tiin8hw'));
 console.log(MY_NANO_JS.nanojs_verify_message(signature, hashArrayBuffer, wallet_public_key)); // return true
@@ -134,5 +213,5 @@ console.log(enc_bip39str);
 
 console.log(MY_NANO_JS.nanojs_encrypted_stream_to_seed(enc_bip39str, 'mypasswordherewithallcharhereA@1', 'dictionary.dic'));
 
-
+*/
 

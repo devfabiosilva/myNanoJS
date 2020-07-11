@@ -766,6 +766,7 @@ napi_value nanojs_convert_balance(napi_env env, napi_callback_info info)
    napi_value argv[2], res;
    size_t argc=2, sz_tmp, tmp;
    uint32_t type;
+   void *buffer;
    char *p;
 //type is optional. If ommited then assume value is raw -> real
    if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
@@ -790,32 +791,49 @@ napi_value nanojs_convert_balance(napi_env env, napi_callback_info info)
       return NULL;
    }
 
-   if (napi_get_value_string_utf8(env, argv[0], p=(_buf+192), (sizeof(_buf)-192)+1, &sz_tmp)!=napi_ok) {
+   if ((int)type&(HEX_TO_REAL|HEX_TO_RAW)) {
+      if (napi_get_arraybuffer_info(env, argv[0], &buffer, &sz_tmp)!=napi_ok) {
+         napi_throw_error(env, "600", "Can't read Big number in ArrayBuffer");
+         return NULL;
+      }
+
+      if (!sz_tmp) {
+         napi_throw_error(env, "601", "Big number lengh in ArrayBuffer is zero");
+         return NULL;
+      }
+
+      if (sz_tmp>sizeof(f_uint128_t)) {
+         sprintf(_buf, "Hex length %lu. Nano big number must be 16 bytes long", (unsigned long int)sz_tmp);
+         napi_throw_error(env, "169", (const char *)_buf);
+         return NULL;
+      }
+
+      memcpy(p=(_buf+192), buffer, sz_tmp);
+   } else if (napi_get_value_string_utf8(env, argv[0], p=(_buf+192), (sizeof(_buf)-192)+1, &sz_tmp)==napi_ok) {
+      if (!sz_tmp) {
+         napi_throw_error(env, "173", "Empty value");
+         return NULL;
+      }
+
+      if (sz_tmp>(F_RAW_STR_MAX_SZ-1)) {
+         sprintf(_buf, "Wrong balance size = %lu", (unsigned long int)sz_tmp);
+         napi_throw_error(env, "167", (const char *)_buf);
+         return NULL;
+      }
+
+      p[sz_tmp]=0;
+   } else{
       napi_throw_error(env, "168", "Can't parse Big number value for conversion");
       return NULL;
    }
 
-   if (!sz_tmp) {
-      napi_throw_error(env, "173", "Empty value");
-      return NULL;
-   }
-
-   if (sz_tmp>(F_RAW_STR_MAX_SZ-1)) {
-      sprintf(_buf, "Wrong balance size = %lu", (unsigned long int)sz_tmp);
-      napi_throw_error(env, "167", _buf);
-      return NULL;
-   }
-
-   p[sz_tmp]=0;
-
-   switch (type) {
-
-      case REAL_TO_RAW:
+   switch ((int)type) {
       case REAL_TO_HEX:
+      case REAL_TO_RAW:
          if ((err=f_nano_parse_real_str_to_raw128_t((uint8_t *)(_buf+BUFFER_ADJUST), (const char *)p))) {
             sprintf(_buf, "%d", err);
             sprintf(p, "Can't parse Real to Nao Raw big int %s", _buf);
-            napi_throw_error(env, _buf, p);
+            napi_throw_error(env, (const char *)_buf, (const char *)p);
             return NULL;
          }
 
@@ -823,89 +841,77 @@ napi_value nanojs_convert_balance(napi_env env, napi_callback_info info)
             if ((err=f_nano_balance_to_str(_buf, BUFFER_ADJUST, NULL, (uint8_t *)(_buf+BUFFER_ADJUST)))) {
                sprintf(_buf, "%d", err);
                sprintf(p, "Can't convert raw hex big number to raw string %s", _buf);
-               napi_throw_error(env, _buf, p);
+               napi_throw_error(env, (const char *)_buf, (const char *)p);
                return NULL;
             }
-
             break;
          }
-         
-         fhex2strv2(_buf, (const void *)(_buf+BUFFER_ADJUST), sizeof(f_uint128_t), 0);
-         break;
 
+         memcpy(_buf, (_buf+BUFFER_ADJUST), sizeof(f_uint128_t));
+         break;
       case RAW_TO_REAL:
          if ((err=f_nano_raw_to_string(_buf, NULL, BUFFER_ADJUST, p, F_RAW_TO_STR_STRING))) {
             sprintf(_buf, "%d", err);
             sprintf(p, "Can't convert raw string big number to real string %s", _buf);
-            napi_throw_error(env, _buf, p);
+            napi_throw_error(env, (const char *)_buf, (const char *)p);
             return NULL;
          }
-
          break;
-
       case RAW_TO_HEX:
-         if ((err=f_nano_parse_raw_str_to_raw128_t((uint8_t *)(_buf+BUFFER_ADJUST), (const char *)p))) {
+         if ((err=f_nano_parse_raw_str_to_raw128_t((uint8_t *)_buf, (const char *)p))) {
             sprintf(_buf, "%d", err);
             sprintf(p, "Can't convert raw string big number to raw hex binary %s", _buf);
-            napi_throw_error(env, _buf, p);
+            napi_throw_error(env, (const char *)_buf, (const char *)p);
             return NULL;
          }
-
-         fhex2strv2(_buf, (_buf+BUFFER_ADJUST), sizeof(f_uint128_t), 0);
          break;
-
       case HEX_TO_REAL:
-      case HEX_TO_RAW:
-         if (sz_tmp>2*sizeof(f_uint128_t)) {
-            sprintf(_buf, "Hex string balance length %lu. Nano big number must be 16 bytes long", (unsigned long int)sz_tmp);
-            napi_throw_error(env, "169", _buf);
-            return NULL;
-         }
-
-         memset(_buf+256, 0, sizeof(_buf)-256);
+      case HEX_TO_RAW:;
          tmp=0;
 
-         if (sz_tmp^2*sizeof(f_uint128_t)) {
-            tmp=2*sizeof(f_uint128_t)-sz_tmp;
-            memset(_buf+256, '0', tmp);
+         if (sz_tmp^sizeof(f_uint128_t)) {
+            tmp=sizeof(f_uint128_t)-sz_tmp;
+            memset(_buf+BUFFER_ADJUST, 0, tmp);
          }
 
-         memcpy(_buf+tmp+256, p, sz_tmp);
-
-         if ((err=f_str_to_hex((uint8_t *)_buf+BUFFER_ADJUST, _buf+256))) {
-            napi_throw_error(env, "170", "Can't parse string to binary hex");
-            return NULL;
-         }
+         memcpy(_buf+BUFFER_ADJUST+tmp, p, sz_tmp);
 
          if ((int)type&HEX_TO_REAL) {
-            if ((err=f_nano_raw_to_string(_buf, NULL, BUFFER_ADJUST, (void *)_buf+BUFFER_ADJUST, F_RAW_TO_STR_UINT128))) {
+            if ((err=f_nano_raw_to_string(_buf, NULL, BUFFER_ADJUST, (void *)(_buf+BUFFER_ADJUST), F_RAW_TO_STR_UINT128))) {
                sprintf(_buf, "%d", err);
                sprintf(p, "Can't parse raw binary hex to real string %s", _buf);
-               napi_throw_error(env, _buf, p);
+               napi_throw_error(env, (const char *)_buf, (const char *)p);
                return NULL;
             }
-
             break;
          }
 
          if ((err=f_nano_balance_to_str(_buf, BUFFER_ADJUST, NULL, (uint8_t *)(_buf+BUFFER_ADJUST)))) {
             sprintf(_buf, "%d", err);
             sprintf(p, "Can't parse raw hex binary to raw string %s", _buf);
-            napi_throw_error(env, _buf, p);
+            napi_throw_error(env, (const char *)_buf, (const char *)p);
             return NULL;
          }
 
          break;
-
       default:
          napi_throw_error(env, "171", "Unknown conversion type");
          return NULL;
-
    }
 
-   if (napi_create_string_utf8(env, _buf, NAPI_AUTO_LENGTH, &res)!=napi_ok) {
+   if ((int)type&(REAL_TO_HEX|RAW_TO_HEX)) {
+      if (napi_create_arraybuffer(env, sizeof(f_uint128_t), &buffer, &res)!=napi_ok) {
+         napi_throw_error(env, "602", "Can't create array buffer to store Big Number uint128");
+         return NULL;
+      }
+
+      if (napi_create_external_arraybuffer(env, memcpy(buffer, _buf, sizeof(f_uint128_t)), sizeof(f_uint128_t), NULL, NULL, &res)!=napi_ok) {
+         napi_throw_error(env, "603", "Can't copy array buffer to store Big Number uint128 in Javascript");
+         res=NULL;
+      }
+   } else if (napi_create_string_utf8(env, _buf, NAPI_AUTO_LENGTH, &res)!=napi_ok) {
       napi_throw_error(env, "172", "Unable to parse conversion to JavaScript");
-      return NULL;
+      res=NULL;
    }
 
    return res;
@@ -1358,12 +1364,12 @@ napi_value nanojs_encrypted_stream_to_seed(napi_env env, napi_callback_info info
    }
 
    if (napi_get_arraybuffer_info(env, argv[0], &buffer, &buffer_sz)!=napi_ok) {
-      napi_throw_error(env, "199", "Unable to parse ArrayBuffer to open encrypted stream");
+      napi_throw_error(env, ERROR_UNABLE_TO_PARSE_ARRAY_BUFFER_TO_ENCRTYPTED_STREAM, ERROR_UNABLE_TO_PARSE_ARRAY_BUFFER_TO_ENCRTYPTED_STREAM_MSG);
       return NULL;
    }
 
    if (buffer_sz!=sizeof(F_NANO_CRYPTOWALLET)) {
-      napi_throw_error(env, "500", "Wrong encrypted stream size");
+      napi_throw_error(env, ERROR_WRONG_ENCRYPTED_STREAM_SIZE, ERROR_WRONG_ENCRYPTED_STREAM_SIZE_MSG);
       return NULL;
    }
 
@@ -1386,7 +1392,7 @@ napi_value nanojs_encrypted_stream_to_seed(napi_env env, napi_callback_info info
 
    if ((err=f_read_seed((uint8_t *)(q=(_buf+sizeof(_buf)-32)), (const char *)p, buffer, 0, READ_SEED_FROM_STREAM))) {
       sprintf(_buf, "%d", err);
-      sprintf(_buf+128, "Internal error. Can't read encrypted stream %s", _buf);
+      sprintf(_buf+128, ERROR_CANT_READ_ENCRYPTED_STREAM, _buf);
       napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
       goto nanojs_encrypted_stream_to_seed_EXIT1;
    }
@@ -1573,7 +1579,7 @@ napi_value nanojs_gen_seed_to_encrypted_stream(napi_env env, napi_callback_info 
    if (napi_create_external_arraybuffer(env, memcpy(buffer, encrypted_stream, sizeof(F_NANO_CRYPTOWALLET)),
       sizeof(F_NANO_CRYPTOWALLET), NULL, NULL, &res)!=napi_ok) {
 
-      napi_throw_error(env, "514", "Can't copy array buffer to store encrypted Nano Block in Javascript ArrayBuffer");
+      napi_throw_error(env, ERROR_CANT_PARSE_ENCRIPTED_STREAM_TO_ARRAY_BUFFER, ERROR_CANT_PARSE_ENCRIPTED_STREAM_TO_ARRAY_BUFFER_MSG);
       res=NULL;
 
    }
@@ -1684,8 +1690,7 @@ napi_value nanojs_bip39_to_encrypted_stream(napi_env env, napi_callback_info inf
 
    if (napi_create_external_arraybuffer(env, memcpy(buffer, q, sizeof(F_NANO_CRYPTOWALLET)),
       sizeof(F_NANO_CRYPTOWALLET), NULL, NULL, &res)!=napi_ok) {
-
-      napi_throw_error(env, "514", "Can't copy array buffer to store encrypted Nano Block in Javascript ArrayBuffer");
+      napi_throw_error(env, ERROR_CANT_PARSE_ENCRIPTED_STREAM_TO_ARRAY_BUFFER, ERROR_CANT_PARSE_ENCRIPTED_STREAM_TO_ARRAY_BUFFER_MSG);
       res=NULL;
 
    }
@@ -1756,12 +1761,12 @@ napi_value nanojs_seed_to_keypair(napi_env env, napi_callback_info info)
 
    if (argc==3) {
       if (napi_get_value_string_utf8(env, argv[2], prefix=(_buf+96), sizeof(NANO_PREFIX)+1, &sz_tmp)!=napi_ok) {
-         napi_throw_error(env, "516", "Can't parse Nano/Xrb prefix");
+         napi_throw_error(env, ERROR_CANT_PARSE_NANO_XRB_PREFIX, ERROR_CANT_PARSE_NANO_XRB_PREFIX_MSG);
          goto nanojs_seed_to_keypair_EXIT1;
       }
 
       if (sz_tmp==sizeof(NANO_PREFIX)) {
-         napi_throw_error(env, "517", "Wrong prefix size");
+         napi_throw_error(env, ERROR_WRONG_PREFIX_SIZE, ERROR_WRONG_PREFIX_SIZE_MSG);
          goto nanojs_seed_to_keypair_EXIT1;
       }
 
@@ -1770,52 +1775,19 @@ napi_value nanojs_seed_to_keypair(napi_env env, napi_callback_info info)
       prefix=NANO_PREFIX;
 
    if ((err=seed2keypair_util(_buf, &p, &q, wallet_number, (const char *)prefix, buffer==NULL))) {
-      napi_throw_error(env, p, q);
+      napi_throw_error(env, (const char *)p, (const char *)q);
       goto nanojs_seed_to_keypair_EXIT1;
    }
 
    if (napi_create_object(env, &res)!=napi_ok) {
-      napi_throw_error(env, "518", "myNanoEmbedded C error on creating object in 'nanojs_seed_to_keypair'");
+      napi_throw_error(env, ERROR_CREATING_OBJECT, ERROR_CREATING_OBJECT_MSG);
       goto nanojs_seed_to_keypair_EXIT1;
    }
 
-   if (napi_create_string_utf8(env, p, 64, &argv[0])!=napi_ok) {
-      napi_throw_error(env, "519", "Unable to parse extracted Private Key to JSON parameter");
-      goto nanojs_seed_to_keypair_EXIT1;
-   }
-
-   if (napi_set_named_property(env, res, "private_key", argv[0])!=napi_ok) {
-      napi_throw_error(env, "520", "myNanoEmbedded C error. Can't set 'private_key' property to 'nanojs_seed_to_keypair'");
-      goto nanojs_seed_to_keypair_EXIT1;
-   }
-
-   if (napi_create_string_utf8(env, q, 64, &argv[1])!=napi_ok) {
-      napi_throw_error(env, "521", "Unable to parse extracted Public Key to JSON parameter");
-      goto nanojs_seed_to_keypair_EXIT1;
-   }
-
-   if (napi_set_named_property(env, res, "public_key", argv[1])!=napi_ok) {
-      napi_throw_error(env, "522", "myNanoEmbedded C error. Can't set 'public_key' property to 'nanojs_seed_to_keypair'");
-      goto nanojs_seed_to_keypair_EXIT1;
-   }
-
-   if (napi_create_uint32(env, wallet_number, &argv[2])!=napi_ok) {
-      napi_throw_error(env, "523", "Unable to parse Wallet Number to JSON parameter");
-      goto nanojs_seed_to_keypair_EXIT1;
-   }
-
-   if (napi_set_named_property(env, res, "wallet_number", argv[2])!=napi_ok) {
-      napi_throw_error(env, "524", "myNanoEmbedded C error. Can't set 'wallet_number' property to 'nanojs_seed_to_keypair'");
-      goto nanojs_seed_to_keypair_EXIT1;
-   }
-
-   if (napi_create_string_utf8(env, _buf, NAPI_AUTO_LENGTH, &argv[2])!=napi_ok) {
-      napi_throw_error(env, "525", "Unable to parse extracted Base32 Nano Wallet to JSON parameter");
-      goto nanojs_seed_to_keypair_EXIT1;
-   }
-
-   if (napi_set_named_property(env, res, "wallet", argv[2])!=napi_ok) {
-      napi_throw_error(env, "526", "myNanoEmbedded C error. Can't set 'wallet' property to 'nanojs_seed_to_keypair'");
+   if ((err=create_object_keypair_util(env, res, p, q, wallet_number, _buf))) {
+      sprintf(_buf, "%d", err);
+      sprintf(p=_buf+128, ERROR_INTERNAL_C_FUNCTION_CREATE_OBJECT_MSG, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)p);
       res=NULL;
    }
 
@@ -1835,7 +1807,7 @@ napi_value nanojs_compare(napi_env env, napi_callback_info info)
    char *a, *b;
    uint32_t mode_compare, compare_result;
    void *buffer;
-
+// a: string|arrayBuffer, b: string|arrayBuffer, inputType: number, condition: number
    if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
       napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
       return NULL;
@@ -1946,6 +1918,109 @@ napi_value nanojs_compare(napi_env env, napi_callback_info info)
    return res;
 }
 
+napi_value nanojs_encrypted_stream_to_key_pair(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[4], res;
+   size_t argc=4, sz_tmp;
+   uint32_t wallet_number;
+   char *p, *q, *prefix;
+   uint8_t *buffer;
+// encrypted stream, password, wallet_number, prefix(optional)
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>4) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<3) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_value_uint32(env, argv[2], &wallet_number)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_EXPORT_WALLET_NUMBER, ERROR_CANT_EXPORT_WALLET_NUMBER_MSG);
+      return NULL;
+   }
+
+   if (argc==4) {
+      if (napi_get_value_string_utf8(env, argv[3], prefix=(_buf+96), sizeof(NANO_PREFIX)+1, &sz_tmp)!=napi_ok) {
+         napi_throw_error(env, ERROR_CANT_PARSE_NANO_XRB_PREFIX, ERROR_CANT_PARSE_NANO_XRB_PREFIX_MSG);
+         return NULL;
+      }
+
+      if (sz_tmp==sizeof(NANO_PREFIX)) {
+         napi_throw_error(env, ERROR_WRONG_PREFIX_SIZE, ERROR_WRONG_PREFIX_SIZE_MSG);
+         return NULL;
+      }
+
+      prefix[sz_tmp]=0;
+   } else
+      prefix=NANO_PREFIX;
+
+   if (napi_get_arraybuffer_info(env, argv[0], (void **)&buffer, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_UNABLE_TO_PARSE_ARRAY_BUFFER_TO_ENCRTYPTED_STREAM, ERROR_UNABLE_TO_PARSE_ARRAY_BUFFER_TO_ENCRTYPTED_STREAM_MSG);
+      return NULL;
+   }
+
+   if (sz_tmp!=sizeof(F_NANO_CRYPTOWALLET)) {
+      napi_throw_error(env, ERROR_WRONG_ENCRYPTED_STREAM_SIZE, ERROR_WRONG_ENCRYPTED_STREAM_SIZE_MSG);
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[1], p=_buf+(sizeof(_buf)>>1), ((sizeof(_buf)>>1)-32)+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_PARSE_PASSWORD, ERROR_CANT_PARSE_PASSWORD_MSG);
+      goto nanojs_encrypted_stream_to_key_pair_EXIT1;
+   }
+
+   if (!sz_tmp) {
+      napi_throw_error(env, ERROR_EMPTY_PASSWORD, ERROR_EMPTY_PASSWORD_MSG);
+      goto nanojs_encrypted_stream_to_key_pair_EXIT1;
+   }
+
+   if (sz_tmp==((sizeof(_buf)>>1)-32)) {
+      napi_throw_error(env, ERROR_PASSWORD_TOO_LONG, ERROR_PASSWORD_TOO_LONG_MSG);
+      goto nanojs_encrypted_stream_to_key_pair_EXIT1;
+   }
+
+   p[sz_tmp]=0;
+
+   if ((err=f_read_seed((uint8_t *)_buf, (const char *)p, buffer, 0, READ_SEED_FROM_STREAM))) {
+      sprintf(_buf, "%d", err);
+      sprintf(p=(_buf+128), ERROR_CANT_READ_ENCRYPTED_STREAM, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)p);
+      goto nanojs_encrypted_stream_to_key_pair_EXIT1;
+   }
+
+   if ((err=seed2keypair_util(_buf, &p, &q, wallet_number, (const char *)prefix, 0))) {
+      napi_throw_error(env, (const char *)p, (const char *)q);
+      goto nanojs_encrypted_stream_to_key_pair_EXIT1;
+   }
+
+   if (napi_create_object(env, &res)!=napi_ok) {
+      napi_throw_error(env, ERROR_CREATING_OBJECT, ERROR_CREATING_OBJECT_MSG);
+      goto nanojs_encrypted_stream_to_key_pair_EXIT1;
+   }
+
+   if ((err=create_object_keypair_util(env, res, p, q, wallet_number, _buf))) {
+      sprintf(_buf, "%d", err);
+      sprintf(p=(_buf+128), ERROR_INTERNAL_C_FUNCTION_CREATE_OBJECT_MSG, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)p);
+      res=NULL;
+   }
+
+   memory_flush();
+   return res;
+
+nanojs_encrypted_stream_to_key_pair_EXIT1:
+   memory_flush();
+   return NULL;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
@@ -1967,6 +2042,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_gen_seed_to_encrypted_stream", nanojs_gen_seed_to_encrypted_stream},
    {"nanojs_bip39_to_encrypted_stream", nanojs_bip39_to_encrypted_stream},
    {"nanojs_compare", nanojs_compare},
+   {"nanojs_encrypted_stream_to_key_pair", nanojs_encrypted_stream_to_key_pair},
    {NULL, NULL}
 
 };

@@ -2021,6 +2021,121 @@ nanojs_encrypted_stream_to_key_pair_EXIT1:
    return NULL;
 }
 
+napi_value nanojs_from_multiplier(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[2], res;
+   size_t argc=2;
+   double multiplier;
+   uint64_t base_difficulty;
+   bool lossless;
+
+// multiplier: double, base_difficulty (optional)
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>2) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (!argc) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_value_double(env, argv[0], &multiplier)!=napi_ok) {
+      napi_throw_error(env, "542", "Can't parse double multiplier");
+      return NULL;
+   }
+
+   if (multiplier<=0.0) {
+      napi_throw_error(env, "546", "Invalid multiplier");
+      return NULL;
+   }
+
+   if (argc==1)
+      base_difficulty=F_DEFAULT_THRESHOLD;
+   else {
+      if (napi_get_value_bigint_uint64(env, argv[1], &base_difficulty, &lossless)!=napi_ok) {
+         napi_throw_error(env, ERROR_PARSING_BASE_DIFFICULTY, ERROR_PARSING_BASE_DIFFICULTY_MSG);
+         return NULL;
+      }
+
+      if (!lossless) {
+         napi_throw_error(env, ERROR_PARSING_BASE_DIFFICULTY, ERROR_PARSING_BASE_DIFFICULTY_MSG);
+         return NULL;
+      }
+   }
+
+   if (napi_create_bigint_uint64(env, from_multiplier(multiplier, base_difficulty), &res)!=napi_ok) {
+      napi_throw_error(env, "545", "Can't create Big Int from multiplier");
+      res=NULL;
+   }
+
+   return res;
+}
+
+napi_value nanojs_to_multiplier(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[2], res;
+   size_t argc=2;
+   uint64_t difficulty, base_difficulty;
+   bool lossless;
+
+//difficulty: uint64_t, base_difficulty: uint64_t (optional)
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>2) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (!argc) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (argc==1)
+      base_difficulty=F_DEFAULT_THRESHOLD;
+   else {
+      if (napi_get_value_bigint_uint64(env, argv[1], &base_difficulty, &lossless)!=napi_ok) {
+         napi_throw_error(env, ERROR_PARSING_BASE_DIFFICULTY, ERROR_PARSING_BASE_DIFFICULTY_MSG);
+         return NULL;
+      }
+
+      if (!lossless) {
+         napi_throw_error(env, ERROR_PARSING_BASE_DIFFICULTY, ERROR_PARSING_BASE_DIFFICULTY_MSG);
+         return NULL;
+      }
+   }
+
+   if (napi_get_value_bigint_uint64(env, argv[0], &difficulty, &lossless)!=napi_ok) {
+      napi_throw_error(env, "547", "Can't parse Big Int difficulty");
+      return NULL;
+   }
+
+   if (!lossless) {
+      napi_throw_error(env, "548", "Precision loss in difficulty big int");
+      return NULL;
+   }
+
+   if (napi_create_double(env, to_multiplier(difficulty, base_difficulty), &res)!=napi_ok) {
+      napi_throw_error(env, "549", "Can't create double result from multiplier");
+      res=NULL;
+   }
+
+   return res;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
@@ -2043,6 +2158,8 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_bip39_to_encrypted_stream", nanojs_bip39_to_encrypted_stream},
    {"nanojs_compare", nanojs_compare},
    {"nanojs_encrypted_stream_to_key_pair", nanojs_encrypted_stream_to_key_pair},
+   {"nanojs_from_multiplier", nanojs_from_multiplier},
+   {"nanojs_to_multiplier", nanojs_to_multiplier},
    {NULL, NULL}
 
 };

@@ -962,7 +962,7 @@ napi_value nanojs_sign_block(napi_env env, napi_callback_info info)
    }
 
    if (sz_tmp!=128) {
-      napi_throw_error(env, "175", "Wrong private key size");
+      napi_throw_error(env, WRONG_PRIVATE_KEY_SZ, WRONG_PRIVATE_KEY_SZ_MSG);
       return NULL;
    }
 
@@ -972,7 +972,7 @@ napi_value nanojs_sign_block(napi_env env, napi_callback_info info)
    if ((err=f_str_to_hex(p=(uint8_t *)(_buf+256), _buf))) {
       memory_flush();
       sprintf(_buf, "%d", err);
-      sprintf((char *)p, "Can't parse private key to binary hex %s", _buf);
+      sprintf((char *)p, ERROR_CANT_PARSE_PRIVATE_KEY_TO_BINARY, _buf);
       napi_throw_error(env, _buf, (char *)p);
       return NULL;
    }
@@ -1142,6 +1142,8 @@ napi_value nanojs_verify_message(napi_env env, napi_callback_info info)
    char *p;
    void *buffer;
 
+// signature: string, data: arraybuffer, pk_or_wallet: string
+
    if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
       napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
       return NULL;
@@ -1184,12 +1186,12 @@ napi_value nanojs_verify_message(napi_env env, napi_callback_info info)
       return NULL;
    }
 
-   if (sz_tmp==129) {
+   if (sz_tmp!=128) {
       napi_throw_error(env, "189", "Wrong signature size");
       return NULL;
    }
 
-   p[sz_tmp]=0;
+   p[128]=0;
 
    ((is_nano_prefix((const char *)_buf, NANO_PREFIX))||(is_nano_prefix((const char *)_buf, XRB_PREFIX)))?
       (type=F_VERIFY_SIG_NANO_WALLET):(type=F_VERIFY_SIG_ASCII_HEX);
@@ -2023,7 +2025,6 @@ nanojs_encrypted_stream_to_key_pair_EXIT1:
 
 napi_value nanojs_from_multiplier(napi_env env, napi_callback_info info)
 {
-   int err;
    napi_value argv[2], res;
    size_t argc=2;
    double multiplier;
@@ -2066,7 +2067,7 @@ napi_value nanojs_from_multiplier(napi_env env, napi_callback_info info)
       }
 
       if (!lossless) {
-         napi_throw_error(env, ERROR_PARSING_BASE_DIFFICULTY, ERROR_PARSING_BASE_DIFFICULTY_MSG);
+         napi_throw_error(env, ERROR_PRECISION_LOSS_DIFFICULTY, ERROR_PRECISION_LOSS_DIFFICULTY_MSG);
          return NULL;
       }
    }
@@ -2081,7 +2082,6 @@ napi_value nanojs_from_multiplier(napi_env env, napi_callback_info info)
 
 napi_value nanojs_to_multiplier(napi_env env, napi_callback_info info)
 {
-   int err;
    napi_value argv[2], res;
    size_t argc=2;
    uint64_t difficulty, base_difficulty;
@@ -2113,7 +2113,7 @@ napi_value nanojs_to_multiplier(napi_env env, napi_callback_info info)
       }
 
       if (!lossless) {
-         napi_throw_error(env, ERROR_PARSING_BASE_DIFFICULTY, ERROR_PARSING_BASE_DIFFICULTY_MSG);
+         napi_throw_error(env, ERROR_PRECISION_LOSS_DIFFICULTY, ERROR_PRECISION_LOSS_DIFFICULTY_MSG);
          return NULL;
       }
    }
@@ -2134,6 +2134,78 @@ napi_value nanojs_to_multiplier(napi_env env, napi_callback_info info)
    }
 
    return res;
+}
+
+napi_value nanojs_sign_message(napi_env env, napi_callback_info info)
+{
+   int err;
+   char *p;
+   napi_value argv[2], res;
+   size_t argc=2, sz_tmp;
+   uint8_t *buffer;
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>2) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<2) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[1], p=(_buf+128), (sizeof(_buf)-128)+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_PARSE_PASSWORD, ERROR_CANT_PARSE_PASSWORD_MSG);
+      goto nanojs_sign_message_EXIT1;
+   }
+
+   if (sz_tmp!=128) {
+      napi_throw_error(env, WRONG_PRIVATE_KEY_SZ, WRONG_PRIVATE_KEY_SZ_MSG);
+      goto nanojs_sign_message_EXIT1;
+   }
+
+   p[128]=0;
+
+   if ((err=f_str_to_hex((uint8_t *)_buf, p))) {
+      sprintf(_buf, "%d", err);
+      sprintf((char *)p, ERROR_CANT_PARSE_PRIVATE_KEY_TO_BINARY, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)p);
+      goto nanojs_sign_message_EXIT1;
+   }
+
+   if (napi_get_arraybuffer_info(env, argv[0], (void **)&buffer, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "550", "Can't parse ArrayBuffer for sign message");
+      goto nanojs_sign_message_EXIT1;
+   }
+
+   if (!sz_tmp) {
+      napi_throw_error(env, ERROR_EMPTY_ARRAY_BUFFER_ERR, ERROR_EMPTY_ARRAY_BUFFER_MSG);
+      goto nanojs_sign_message_EXIT1;
+   }
+
+   if ((err=f_sign_data((unsigned char *)p, NULL, F_SIGNATURE_STRING, (const unsigned char *)buffer, sz_tmp, (const unsigned char *)_buf))) {
+      sprintf(_buf, "%d", err);
+      sprintf((char *)p, "Can't sign ArrayBuffer raw data %s", _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)p);
+      goto nanojs_sign_message_EXIT1;
+   }
+
+   if (napi_create_string_utf8(env, (const char *)p, 128, &res)!=napi_ok) {
+      napi_throw_error(env, "551", "Can't parse signature of the ArrayBuffer to JavaScript");
+      res=NULL;
+   }
+
+   memory_flush();
+   return res;
+
+nanojs_sign_message_EXIT1:
+   memory_flush();
+   return NULL;
 }
 
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
@@ -2160,6 +2232,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_encrypted_stream_to_key_pair", nanojs_encrypted_stream_to_key_pair},
    {"nanojs_from_multiplier", nanojs_from_multiplier},
    {"nanojs_to_multiplier", nanojs_to_multiplier},
+   {"nanojs_sign_message", nanojs_sign_message},
    {NULL, NULL}
 
 };

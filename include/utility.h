@@ -68,8 +68,11 @@ static char _buf[F_BUF_CHAR];
 #define ERROR_CREATING_OBJECT "518"
 #define ERROR_PARSING_BASE_DIFFICULTY_MSG "Error when parsing base diffuculty to big int"
 #define ERROR_PARSING_BASE_DIFFICULTY "543"
-#define ERROR_PARSING_BASE_DIFFICULTY_MSG "Precision loss in base difficulty big int"
-#define ERROR_PARSING_BASE_DIFFICULTY "544"
+#define ERROR_PRECISION_LOSS_DIFFICULTY_MSG "Precision loss in base difficulty big int"
+#define ERROR_PRECISION_LOSS_DIFFICULTY "544"
+#define WRONG_PRIVATE_KEY_SZ_MSG "Wrong private key size"
+#define WRONG_PRIVATE_KEY_SZ "175"
+#define ERROR_CANT_PARSE_PRIVATE_KEY_TO_BINARY "Can't parse private key to binary hex %s"
 
 #define MIN_PASSWORD_SZ (size_t)18
 #define PASS_MUST_HAVE (int)(F_PASS_MUST_HAVE_AT_LEAST_ONE_NUMBER|F_PASS_MUST_HAVE_AT_LEAST_ONE_SYMBOL|F_PASS_MUST_HAVE_AT_LEAST_ONE_UPPER_CASE|F_PASS_MUST_HAVE_AT_LEAST_ONE_LOWER_CASE)

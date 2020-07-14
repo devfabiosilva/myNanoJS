@@ -6,6 +6,19 @@ function stringToArrayBuffer(value) {
    let buffer;
    let arrayBuffer;
 
+   buffer = Buffer.from(value);
+   arrayBuffer = new ArrayBuffer(buffer.length);
+   uint8 = new Uint8Array(arrayBuffer);
+   uint8.set(buffer);
+
+   return arrayBuffer;
+}
+
+function hexToArrayBuffer(value) {
+   let uint8;
+   let buffer;
+   let arrayBuffer;
+
    buffer = Buffer.from(value, 'hex');
    arrayBuffer = new ArrayBuffer(buffer.length);
    uint8 = new Uint8Array(arrayBuffer);
@@ -16,7 +29,7 @@ function stringToArrayBuffer(value) {
 
 console.log(
 MY_NANO_JS.nanojs_compare(
-stringToArrayBuffer('00009d632382e95f9ed7ce322c800000'), //3192.1928861 Big Number in hex 
+hexToArrayBuffer('00009d632382e95f9ed7ce322c800000'), //3192.1928861 Big Number in hex 
 '3182', // Real value
 MY_NANO_JS.NANO_BIG_NUMBER_TYPE.NANO_A_RAW_128+MY_NANO_JS.NANO_BIG_NUMBER_TYPE.NANO_B_REAL_STRING,
 MY_NANO_JS.NANO_BIG_NUMBER_CONDITIONAL.NANO_COMPARE_LT)); // (3192.1928861 <= 3182) = false
@@ -30,7 +43,7 @@ MY_NANO_JS.NANO_BIG_NUMBER_CONDITIONAL.NANO_COMPARE_EQ)); //(1.0 === 1.0) = true
 
 
 console.log(MY_NANO_JS.nanojs_compare(
-stringToArrayBuffer('10'), //0.000000000000000000000000000016 Big Number in hex 
+hexToArrayBuffer('10'), //0.000000000000000000000000000016 Big Number in hex 
 '0.000000000000000000000000000016', // Real value
 MY_NANO_JS.NANO_BIG_NUMBER_TYPE.NANO_A_RAW_128+MY_NANO_JS.NANO_BIG_NUMBER_TYPE.NANO_B_REAL_STRING,
 MY_NANO_JS.NANO_BIG_NUMBER_CONDITIONAL.NANO_COMPARE_LEQ)); // (0.000000000000000000000000000016 <= 0.000000000000000000000000000016) = true
@@ -44,11 +57,11 @@ MY_NANO_JS.NANO_BIG_NUMBER_CONDITIONAL.NANO_COMPARE_EQ)); //(1.0001 === 1.0) = f
 console.log('a');
 console.log(MY_NANO_JS.nanojs_convert_balance('1000000000000000000000000000000')); //1.0
 console.log('b');
-console.log(MY_NANO_JS.nanojs_convert_balance(stringToArrayBuffer('1f'), MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_RAW)); //256
+console.log(MY_NANO_JS.nanojs_convert_balance(hexToArrayBuffer('1f'), MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_RAW)); //256
 console.log('c');
-console.log(MY_NANO_JS.nanojs_convert_balance(stringToArrayBuffer('1F'), MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_REAL)); //0.000000000000000000000000000496
+console.log(MY_NANO_JS.nanojs_convert_balance(hexToArrayBuffer('1F'), MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_REAL)); //0.000000000000000000000000000496
 console.log('d');
-console.log(MY_NANO_JS.nanojs_convert_balance(stringToArrayBuffer('00009d632382e95f9ed7ce322c800000'), MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_REAL)); //3192.1928861
+console.log(MY_NANO_JS.nanojs_convert_balance(hexToArrayBuffer('00009d632382e95f9ed7ce322c800000'), MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_REAL)); //3192.1928861
 console.log('e');
 console.log(MY_NANO_JS.nanojs_convert_balance('1.2', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.REAL_TO_HEX)); //0000000f2568bc2d21591d7f80000000
 console.log('f');
@@ -60,7 +73,7 @@ console.log(MY_NANO_JS.nanojs_convert_balance('1200000000000000000000000000000',
 console.log('i');
 console.log(MY_NANO_JS.nanojs_convert_balance('1527.212981661', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.REAL_TO_RAW)); //1.0
 
-const ENCRYPTED_BLOCK = stringToArrayBuffer('5f6e616e6f77616c6c657466696c655f000001004e414e4f205365656420456e637279707465642066696c652f73747265616d2e204b656570206974207361666520616e64206261636b75702069742e20546869732066696c652069732070726f7465637465642062792070617373776f72642e2042555920424954434f494e20616e64204e414e4f2021212100a6e2e890abc0f898203aa12a5e0e83307365c473c58c82184b204feb68bd47ebac15ae55e8f97bf005443a2e0dd5f6486c5f8c76605ac95169f05d45c3f36901ac1fa2bc11a694cd07895f016f768910e7ed53f7a22a62767eb6dabdae16ef3d9592b8f518b802566779a94ce73b36c8cb388d648d8cea56de005eee999f6d1e01dc4dc81317dfd49f66a28cc9515c8aa1a15194a0fb3824ed8a3554c897bad29bd49eeaa84558fc4d49adc68ef7a6767d317835a48a4c45c276bb7283ac3054a2e1708d8ccf8188532cd909ff5352a38377');
+const ENCRYPTED_BLOCK = hexToArrayBuffer('5f6e616e6f77616c6c657466696c655f000001004e414e4f205365656420456e637279707465642066696c652f73747265616d2e204b656570206974207361666520616e64206261636b75702069742e20546869732066696c652069732070726f7465637465642062792070617373776f72642e2042555920424954434f494e20616e64204e414e4f2021212100a6e2e890abc0f898203aa12a5e0e83307365c473c58c82184b204feb68bd47ebac15ae55e8f97bf005443a2e0dd5f6486c5f8c76605ac95169f05d45c3f36901ac1fa2bc11a694cd07895f016f768910e7ed53f7a22a62767eb6dabdae16ef3d9592b8f518b802566779a94ce73b36c8cb388d648d8cea56de005eee999f6d1e01dc4dc81317dfd49f66a28cc9515c8aa1a15194a0fb3824ed8a3554c897bad29bd49eeaa84558fc4d49adc68ef7a6767d317835a48a4c45c276bb7283ac3054a2e1708d8ccf8188532cd909ff5352a38377');
 const ENCRYPTED_BLOCK_PASSWORD = 'MyPasswordHere@1';
 
 console.log(MY_NANO_JS.nanojs_encrypted_stream_to_key_pair(ENCRYPTED_BLOCK, ENCRYPTED_BLOCK_PASSWORD, 320));
@@ -99,7 +112,7 @@ console.log('Fixed 2');
 console.log(MY_NANO_JS);
 console.log(MY_NANO_JS.nanojs_wallet_to_public_key('xrb_3tta9pdxr4djdcm6r3c7969syoirj3dunrtynmmi8n1qtxzk9iksoz1gxdrh'));
 const PRIVATE_KEY='86A4EBE059446FF84F8C4FAC7C56EF97D16DA7369845051414A0A6DA5EB99FCD';
-const PRIVATE_KEY_ARRAY_BUFFER=stringToArrayBuffer(PRIVATE_KEY);
+const PRIVATE_KEY_ARRAY_BUFFER=hexToArrayBuffer(PRIVATE_KEY);
 KEY_PAIR2=MY_NANO_JS.nanojs_seed_to_keypair(PRIVATE_KEY_ARRAY_BUFFER, 1728);
 KEY_PAIR=MY_NANO_JS.nanojs_seed_to_keypair(PRIVATE_KEY, 1728);
 console.log(KEY_PAIR);
@@ -133,9 +146,9 @@ console.log("test");
 console.log(A);
 console.log(MY_NANO_JS.nanojs_block_to_JSON(A));
 console.log(MY_NANO_JS.nanojs_convert_balance('1000000000000000000000000000000')); //1.0
-console.log(MY_NANO_JS.nanojs_convert_balance('100', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_RAW)); //256
-console.log(MY_NANO_JS.nanojs_convert_balance('1F0', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_REAL)); //0.000000000000000000000000000496
-console.log(MY_NANO_JS.nanojs_convert_balance('00009d632382e95f9ed7ce322c800000', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_REAL)); //3192.1928861
+console.log(MY_NANO_JS.nanojs_convert_balance(hexToArrayBuffer('100'), MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_RAW)); //256
+console.log(MY_NANO_JS.nanojs_convert_balance(hexToArrayBuffer('1F0'), MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_REAL)); //0.000000000000000000000000000496
+console.log(MY_NANO_JS.nanojs_convert_balance(hexToArrayBuffer('00009d632382e95f9ed7ce322c800000'), MY_NANO_JS.NANO_BIG_NUMBER_TYPE.HEX_TO_REAL)); //3192.1928861
 console.log(MY_NANO_JS.nanojs_convert_balance('1.2', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.REAL_TO_HEX)); //0000000f2568bc2d21591d7f80000000
 console.log(MY_NANO_JS.nanojs_convert_balance('2020150000000000000000000000000000', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.RAW_TO_HEX)); //2020.15
 console.log(MY_NANO_JS.nanojs_convert_balance('35.18', MY_NANO_JS.NANO_BIG_NUMBER_TYPE.REAL_TO_HEX)); //000001bc08b5f31a0096b1d9e0000000
@@ -143,7 +156,7 @@ console.log(typeof MY_NANO_JS.nanojs_block_to_JSON);
 B=MY_NANO_JS.nanojs_sign_block(A, `${KEY_PAIR.private_key}${KEY_PAIR.public_key}`);
 console.log(MY_NANO_JS.nanojs_block_to_JSON(B));
 console.log(MY_NANO_JS.nanojs_get_block_hash(B));
-console.log(MY_NANO_JS.nanojs_public_key_to_wallet(stringToArrayBuffer(KEY_PAIR.public_key)));
+console.log(MY_NANO_JS.nanojs_public_key_to_wallet(hexToArrayBuffer(KEY_PAIR.public_key)));
 console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.public_key));
 console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.public_key, MY_NANO_JS.XRB_PREFIX));
 console.log(MY_NANO_JS.nanojs_public_key_to_wallet(KEY_PAIR.public_key, MY_NANO_JS.NANO_PREFIX));
@@ -161,6 +174,18 @@ hashUint8Array.set(hashBuffer);
 
 console.log(hashUint8Array);
 console.log(hashArrayBuffer);
+K=stringToArrayBuffer('Mensagem Aqui á `à~ ~');
+console.log(K);
+const SIGNATURE = MY_NANO_JS.nanojs_sign_message(K, `${KEY_PAIR.private_key}${KEY_PAIR.public_key}`);
+console.log(SIGNATURE);
+console.log(KEY_PAIR);
+
+console.log(MY_NANO_JS.nanojs_verify_message(SIGNATURE, K, KEY_PAIR.public_key));
+console.log(MY_NANO_JS.nanojs_verify_message(SIGNATURE, K, KEY_PAIR.wallet));
+
+console.log(MY_NANO_JS.nanojs_verify_message(SIGNATURE, K, 'xrb_3tta9pdxr4djdcm6r3c7969syoirj3dunrtynmmi8n1qtxzk9iksoz1gxdrh'));
+
+
 /*
 console.log(MY_NANO_JS.nanojs_verify_message(signature, hashArrayBuffer, wallet)); // return true
 //console.log(MY_NANO_JS.nanojs_wallet_to_public_key('nano_3xinwsdt57qo5bcysock15do87r9fuepq84erab5udm6wekymq9e9tiin8hw'));

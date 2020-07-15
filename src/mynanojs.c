@@ -2208,6 +2208,118 @@ nanojs_sign_message_EXIT1:
    return NULL;
 }
 
+napi_value nanojs_bip39_to_key_pair(napi_env env, napi_callback_info info)
+{
+   int err;
+   char *p, *q, *bip39_buffer, *prefix;
+   napi_value argv[4], res;
+   size_t argc=4, sz_tmp;
+   uint32_t wallet_number;
+
+// bip39: string, dictionary: string, wallet_number: number, prefix: string (optional)
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>4) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<3) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_value_uint32(env, argv[2], &wallet_number)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_EXPORT_WALLET_NUMBER, ERROR_CANT_EXPORT_WALLET_NUMBER_MSG);
+      return NULL;
+   }
+
+   if (argc==4) {
+      if (napi_get_value_string_utf8(env, argv[3], prefix=(_buf+96), sizeof(NANO_PREFIX)+1, &sz_tmp)!=napi_ok) {
+         napi_throw_error(env, ERROR_CANT_PARSE_NANO_XRB_PREFIX, ERROR_CANT_PARSE_NANO_XRB_PREFIX_MSG);
+         return NULL;
+      }
+
+      if (sz_tmp==sizeof(NANO_PREFIX)) {
+         napi_throw_error(env, ERROR_WRONG_PREFIX_SIZE, ERROR_WRONG_PREFIX_SIZE_MSG);
+         return NULL;
+      }
+
+      prefix[sz_tmp]=0;
+   } else
+      prefix=NANO_PREFIX;
+
+   if (!(bip39_buffer=malloc(BIP39_BUFFER_ADJUST))) {
+      napi_throw_error(env, NULL, ERROR_FATAL_MALLOC);
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[1], p=bip39_buffer+(BIP39_BUFFER_ADJUST>>1), (BIP39_BUFFER_ADJUST>>1)+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_PARSE_FILE_AND_PATH, ERROR_PARSE_FILE_AND_PATH_MSG);
+      goto nanojs_bip39_to_key_pair_EXIT1;
+   }
+
+   if (sz_tmp==(BIP39_BUFFER_ADJUST>>1)) {
+      napi_throw_error(env, ERROR_FILE_PATH_LONG, ERROR_FILE_PATH_TOO_LONG_MSG);
+      goto nanojs_bip39_to_key_pair_EXIT1;
+   }
+
+   p[sz_tmp]=0;
+
+   if (napi_get_value_string_utf8(env, argv[0], bip39_buffer, (BIP39_BUFFER_ADJUST>>1)+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_PARSE_BIP39_TO_C_STR, ERROR_CANT_PARSE_BIP39_TO_C_STR_MSG);
+      goto nanojs_bip39_to_key_pair_EXIT1;
+   }
+
+   if (sz_tmp==(BIP39_BUFFER_ADJUST>>1)) {
+      napi_throw_error(env, ERROR_BIP39_TOO_LONG, ERROR_BIP39_TOO_LONG_MSG);
+      goto nanojs_bip39_to_key_pair_EXIT1;
+   }
+
+   bip39_buffer[sz_tmp]=0;
+
+   if ((err=f_bip39_to_nano_seed((uint8_t *)_buf, bip39_buffer, p))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, ERROR_CANT_PARSE_BIP39_TO_SEED, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
+      goto nanojs_bip39_to_key_pair_EXIT2;
+   }
+
+   if ((err=seed2keypair_util(_buf, &p, &q, wallet_number, (const char *)prefix, 0))) {
+      napi_throw_error(env, (const char *)p, (const char *)q);
+      goto nanojs_bip39_to_key_pair_EXIT2;
+   }
+
+   if (napi_create_object(env, &res)!=napi_ok) {
+      napi_throw_error(env, ERROR_CREATING_OBJECT, ERROR_CREATING_OBJECT_MSG);
+      goto nanojs_bip39_to_key_pair_EXIT2;
+   }
+
+   if ((err=create_object_keypair_util(env, res, p, q, wallet_number, _buf))) {
+      sprintf(_buf, "%d", err);
+      sprintf(p=(_buf+128), ERROR_INTERNAL_C_FUNCTION_CREATE_OBJECT_MSG, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)p);
+      res=NULL;
+   }
+
+   memory_flush();
+   memset(bip39_buffer, 0, BIP39_BUFFER_ADJUST);
+   free(bip39_buffer);
+   return res;
+
+nanojs_bip39_to_key_pair_EXIT2:
+   memory_flush();
+
+nanojs_bip39_to_key_pair_EXIT1:
+   memset(bip39_buffer, 0, BIP39_BUFFER_ADJUST);
+   free(bip39_buffer);
+   return NULL;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
@@ -2233,6 +2345,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_from_multiplier", nanojs_from_multiplier},
    {"nanojs_to_multiplier", nanojs_to_multiplier},
    {"nanojs_sign_message", nanojs_sign_message},
+   {"nanojs_bip39_to_key_pair", nanojs_bip39_to_key_pair},
    {NULL, NULL}
 
 };

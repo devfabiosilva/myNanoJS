@@ -185,6 +185,7 @@ console.log(MY_NANO_JS.nanojs_verify_message(SIGNATURE, K, KEY_PAIR.wallet));
 
 console.log(MY_NANO_JS.nanojs_verify_message(SIGNATURE, K, 'xrb_3tta9pdxr4djdcm6r3c7969syoirj3dunrtynmmi8n1qtxzk9iksoz1gxdrh'));
 
+console.log(MY_NANO_JS.nanojs_bip39_to_key_pair('moral history analyst regular resemble belt exercise motor hungry pizza purity convince narrow ancient arrange hard affair cloth pigeon board grain all story kite', 'dictionary.dic', 159, MY_NANO_JS.XRB_PREFIX));
 
 /*
 console.log(MY_NANO_JS.nanojs_verify_message(signature, hashArrayBuffer, wallet)); // return true

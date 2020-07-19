@@ -405,7 +405,9 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
    if (napi_get_value_string_utf8(env, argv[1], _buf+128, (sizeof(_buf)-128), &sz_tmp)==napi_ok) {
       if (sz_tmp==64) {
          if ((err=f_str_to_hex((uint8_t *)_buf, _buf+128))) {
-            napi_throw_error(env, "144", "Error when parsing previous block to binary");
+            sprintf(_buf, "%d", err);
+            sprintf(_buf+128, "Error when parsing previous block to binary %s", _buf);
+            napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
             return NULL;
          }
 
@@ -434,8 +436,8 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
 
    if ((err=extract_public_key_from_wallet_or_hex_str_util(&xrb_prefix, nano_block.representative, _buf, sz_tmp))) {
       sprintf(_buf, "%d", err);
-      sprintf(_buf+128, "Can't write Representative Nano Wallet/Public key to block %s", _buf);
-      napi_throw_error(env, _buf, _buf+128);
+      sprintf(_buf+128, ERROR_CANT_WRITE_REP_WALLET_PK_TO_BLOCK_MSG, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
       return NULL;
    }
 
@@ -460,8 +462,11 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
    }
 
    if (type_tmp&BALANCE_RAW_128) {
-      if ((err=f_str_to_hex(p=(uint8_t *)(_buf+2*F_RAW_STR_MAX_SZ), Balance))) {
-         napi_throw_error(env, "157", "Can't parse Balance to binary");
+      //if ((err=f_str_to_hex(p=(uint8_t *)(_buf+2*F_RAW_STR_MAX_SZ), Balance))) {
+      if ((err=parse_and_adjust_big_number_hex128_string_balance_util(p=(uint8_t *)(_buf+2*F_RAW_STR_MAX_SZ), Balance, sz_tmp))) {
+         sprintf(_buf, "%d", err);
+         sprintf(_buf+128, "Can't parse Balance to binary %s", _buf);
+         napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
          return NULL;
       }
 
@@ -488,8 +493,11 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
    }
 
    if (type_tmp&VALUE_SEND_RECEIVE_RAW_128) {
-      if ((err=f_str_to_hex(p=(uint8_t *)(_buf+3*F_RAW_STR_MAX_SZ), Value_To_Send_Rec))) {
-         napi_throw_error(env, "157", "Can't parse Value to Send/Receive to binary");
+      if ((err=parse_and_adjust_big_number_hex128_string_balance_util(p=(uint8_t *)(_buf+3*F_RAW_STR_MAX_SZ), Value_To_Send_Rec, sz_tmp))) {
+      //if ((err=f_str_to_hex(p=(uint8_t *)(_buf+3*F_RAW_STR_MAX_SZ), Value_To_Send_Rec))) {
+         sprintf(_buf, "%d", err);
+         sprintf(_buf+128, "Can't parse Value to Send/Receive to binary %s", _buf);
+         napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
          return NULL;
       }
 
@@ -500,7 +508,9 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
    type_tmp|=F_NANO_A_RAW_128;
 
    if ((err=f_nano_value_compare_value(memset(_buf+256, 0, sizeof(f_uint128_t)), Value_To_Send_Rec, &type_tmp))) {
-      napi_throw_error(env, "158", "Can't compare Value to send big numbers");
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, "Can't compare Value to send big numbers %s", _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
       return NULL;
    }
 
@@ -525,7 +535,9 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
       type_tmp=((type&(BALANCE_RAW_128|BALANCE_REAL_STRING|BALANCE_RAW_STRING))|F_NANO_B_RAW_128);
 
       if ((err=f_nano_value_compare_value(Balance, _buf+256, &type_tmp))) {
-         napi_throw_error(env, "158", "Can't compare Balance big number");
+         sprintf(_buf, "%d", err);
+         sprintf(_buf+128, "Can't compare Balance big number %s", _buf);
+         napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
          return NULL;
       }
 
@@ -548,8 +560,8 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
 
    if ((err=extract_public_key_from_wallet_or_hex_str_util(&xrb_prefix, nano_block.link, _buf, sz_tmp))) {
       sprintf(_buf, "%d", err);
-      sprintf(_buf+128, "Can't write link to block %s", _buf);
-      napi_throw_error(env, _buf, _buf+128);
+      sprintf(_buf+128, ERROR_CANT_WRITE_LINK_TO_BLOCK_MSG, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
       return NULL;
    }
 
@@ -1120,8 +1132,8 @@ napi_value nanojs_get_block_hash(napi_env env, napi_callback_info info)
 
    if ((err=f_nano_get_block_hash(p=(uint8_t *)(_buf+128), &nano_block))) {
       sprintf(_buf, "%d", err);
-      sprintf((char *)p, "Can't calculate block hash %s", _buf);
-      napi_throw_error(env, _buf, (char *)p);
+      sprintf((char *)p, ERROR_CANT_CALCULATE_HASH_BLOCK_MSG, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)p);
       return NULL;
    }
 
@@ -1175,7 +1187,7 @@ napi_value nanojs_verify_message(napi_env env, napi_callback_info info)
    }
 
    if (sz_tmp==MAX_STR_NANO_CHAR) {
-      napi_throw_error(env, "187", "Public key/Nano Wallet too long");
+      napi_throw_error(env, ERROR_NANO_WALLET_PK_TOO_LONG, ERROR_NANO_WALLET_PK_TOO_LONG_MSG);
       return NULL;
    }
 
@@ -1907,7 +1919,7 @@ napi_value nanojs_compare(napi_env env, napi_callback_info info)
 
    if ((err=f_nano_value_compare_value(a, b, &mode_compare))) {
       sprintf(a, "%d", err);
-      sprintf(b, "Could not perform a Big number compare %s", a);
+      sprintf(b, ERROR_COULD_PERFORM_BIG_NUMBER_COMPARE_MSG, a);
       napi_throw_error(env, (const char *)a, (const char *)b);
       return NULL;
    }
@@ -2320,6 +2332,181 @@ nanojs_bip39_to_key_pair_EXIT1:
    return NULL;
 }
 
+#define P2POW_BLOCK_SZ (size_t)(2*sizeof(F_BLOCK_TRANSFER))
+napi_value nanojs_block_to_p2pow(napi_env env, napi_callback_info info)
+{
+   int err, prefix;
+   uint32_t worker_fee_type, compare;
+   napi_value argv[5], res;
+   size_t argc=5, sz_tmp;
+   uint8_t *buffer;
+   F_BLOCK_TRANSFER *p2pow_block;
+
+// block: array buffer, worker_wallet: string, worker_representative: string | null, worker_fee: string, worker_fee_type: number (optional)
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>5) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<4) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (argc==5) {
+      if (napi_get_value_uint32(env, argv[4], &worker_fee_type)!=napi_ok) {
+         napi_throw_error(env, "541", "Can't determine worker fee type");
+         return NULL;
+      }
+
+      if (worker_fee_type&(~(F_NANO_B_RAW_128|F_NANO_B_REAL_STRING|F_NANO_B_RAW_STRING))) {
+         napi_throw_error(env, "542", "Invalid worker fee type");
+         return NULL;
+      }
+   } else
+      worker_fee_type=F_NANO_B_REAL_STRING;
+
+   if (!(p2pow_block=malloc(P2POW_BLOCK_SZ))) {
+      napi_throw_error(env, "543", "Can't create P2PoW block");
+      return NULL;
+   }
+
+   if (napi_get_arraybuffer_info(env, argv[0], (void **)&buffer, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_READ_NANO_BLOCK_NUMBER, ERROR_CANT_READ_NANO_BLOCK);
+      goto nanojs_block_to_p2pow_EXIT1;
+   }
+
+   if (sz_tmp!=sizeof(F_BLOCK_TRANSFER)) {
+      napi_throw_error(env, WRONG_NANO_BLOCK_SZ_ERR, WRONG_NANO_BLOCK_SZ);
+      goto nanojs_block_to_p2pow_EXIT1;
+   }
+
+   if (!f_nano_is_valid_block((F_BLOCK_TRANSFER *)buffer)) {
+      napi_throw_error(env, ERROR_INVALID_NANO_BLK_NUMBER, ERROR_INVALID_NANO_BLK);
+      goto nanojs_block_to_p2pow_EXIT1;
+   }
+
+   memcpy(p2pow_block, buffer, sizeof(F_BLOCK_TRANSFER));
+   memset(&p2pow_block[1], 0, P2POW_BLOCK_SZ-sizeof(F_BLOCK_TRANSFER));
+
+   if (napi_get_value_string_utf8(env, argv[2], _buf, MAX_STR_NANO_CHAR+1, &sz_tmp)==napi_ok) {
+      if (!sz_tmp)
+         goto nanojs_block_to_p2pow_STEP1;
+
+      if ((err=extract_public_key_from_wallet_or_hex_str_util(&prefix, p2pow_block[1].representative, _buf, sz_tmp))) {
+         sprintf(_buf, "%d", err);
+         sprintf(_buf+128, ERROR_CANT_WRITE_REP_WALLET_PK_TO_BLOCK_MSG, _buf);
+         napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
+         goto nanojs_block_to_p2pow_EXIT1;
+      }
+
+      if (prefix)
+         p2pow_block[1].prefixes=REP_XRB;
+   } else if (napi_get_null(env, &argv[2])==napi_ok) {
+
+nanojs_block_to_p2pow_STEP1:
+      memcpy(p2pow_block[1].representative, p2pow_block[0].representative, 32);
+      p2pow_block[1].prefixes=(p2pow_block[0].prefixes&REP_XRB);
+   } else {
+      napi_throw_error(env, "544", "Unable to get worker representative");
+      goto nanojs_block_to_p2pow_EXIT1;
+   }
+//
+   if (napi_get_value_string_utf8(env, argv[1], _buf, MAX_STR_NANO_CHAR+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "545", "Can't parse worker account to P2PoW block");
+      goto nanojs_block_to_p2pow_EXIT1;
+   }
+
+   if ((err=extract_public_key_from_wallet_or_hex_str_util(&prefix, p2pow_block[1].link, _buf, sz_tmp))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, ERROR_CANT_WRITE_LINK_TO_BLOCK_MSG, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
+      goto nanojs_block_to_p2pow_EXIT1;
+   }
+
+   if (prefix)
+      p2pow_block[1].prefixes|=DEST_XRB;
+
+   if ((err=f_nano_get_block_hash(p2pow_block[1].previous, p2pow_block))) {
+      sprintf(_buf, "%d", err);
+      sprintf((char *)(_buf+128), ERROR_CANT_CALCULATE_HASH_BLOCK_MSG, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)(_buf+128));
+      goto nanojs_block_to_p2pow_EXIT1;
+   }
+
+   memcpy(p2pow_block[1].account, p2pow_block[0].account, 32);
+   p2pow_block[1].prefixes|=(p2pow_block[0].prefixes&SENDER_XRB);
+
+   if (napi_get_value_string_utf8(env, argv[3], (char *)(buffer=(uint8_t *)(_buf+sizeof(f_uint128_t))), F_RAW_STR_MAX_SZ+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "546", "Can't parse Big Number value to P2PoW block");
+      goto nanojs_block_to_p2pow_EXIT1;
+   }
+
+   if (sz_tmp==F_RAW_STR_MAX_SZ) {
+      napi_throw_error(env, "547", "Worker fee string is too long");
+      goto nanojs_block_to_p2pow_EXIT1;
+   }
+
+   if (worker_fee_type&F_NANO_B_RAW_128) {
+      if ((err=parse_and_adjust_big_number_hex128_string_balance_util((uint8_t *)_buf, (char *)buffer, sz_tmp))) {
+         sprintf(_buf, "%d", err);
+         sprintf(_buf+128, "Can't convert worker fee big number hex string to binary hex %s", _buf);
+         napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
+         goto nanojs_block_to_p2pow_EXIT1;
+      }
+
+      buffer=(uint8_t *)_buf;
+   } else
+      buffer[sz_tmp]=0;
+
+   compare=(worker_fee_type|F_NANO_A_RAW_128);
+
+   if ((err=f_nano_value_compare_value(memset(_buf+256, 0, sizeof(f_uint128_t)), buffer, &compare))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, ERROR_COULD_PERFORM_BIG_NUMBER_COMPARE_MSG, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)_buf+128);
+      goto nanojs_block_to_p2pow_EXIT1;
+   }
+
+   if (compare&F_NANO_COMPARE_EQ) {
+      napi_throw_error(env, "548", "Worker fee is zero!");
+      goto nanojs_block_to_p2pow_EXIT1;
+   }
+
+   if ((err=f_nano_add_sub(p2pow_block[1].balance, p2pow_block[0].balance, buffer, worker_fee_type|F_NANO_SUB_A_B|F_NANO_RES_RAW_128|F_NANO_A_RAW_128))) {
+      sprintf(_buf, "%d", err);
+      napi_throw_error(env, (const char *)_buf, ERROR_ADD_SUB_BIG_NUMBERS);
+      goto nanojs_block_to_p2pow_EXIT1;
+   }
+
+   p2pow_block[1].preamble[31]=0x06;
+
+   if (napi_create_arraybuffer(env, P2POW_BLOCK_SZ, (void **)&buffer, &res)!=napi_ok) {
+      napi_throw_error(env, "549", "Can't create array buffer to store P2PoW Block");
+      goto nanojs_block_to_p2pow_EXIT1;
+   }
+
+   if (napi_create_external_arraybuffer(env, memcpy(buffer, p2pow_block, P2POW_BLOCK_SZ), P2POW_BLOCK_SZ, NULL, NULL, &res)!=napi_ok) {
+      napi_throw_error(env, "550", "Can't copy array buffer to store P2PoW block in Javascript");
+      res=NULL;
+   }
+
+   memset(p2pow_block, 0, P2POW_BLOCK_SZ);
+   free(p2pow_block);
+   return res;
+
+nanojs_block_to_p2pow_EXIT1:
+   memset(p2pow_block, 0, P2POW_BLOCK_SZ);
+   free(p2pow_block);
+   return NULL;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
@@ -2346,6 +2533,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_to_multiplier", nanojs_to_multiplier},
    {"nanojs_sign_message", nanojs_sign_message},
    {"nanojs_bip39_to_key_pair", nanojs_bip39_to_key_pair},
+   {"nanojs_block_to_p2pow", nanojs_block_to_p2pow},
    {NULL, NULL}
 
 };
@@ -2391,6 +2579,9 @@ MY_NANO_JS_CONST_UINT32_T NANO_UINT32_BIG_NUMBER_CONST[] = {
    {"HEX_TO_REAL", HEX_TO_REAL},
    {"RAW_TO_HEX", RAW_TO_HEX},
    {"HEX_TO_RAW", HEX_TO_RAW},
+   {"WORKER_FEE_HEX", F_NANO_B_RAW_128},
+   {"WORKER_FEE_REAL", F_NANO_B_REAL_STRING},
+   {"WORKER_FEE_RAW", F_NANO_B_RAW_STRING},
    {NULL, 0}
 
 };

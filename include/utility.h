@@ -73,6 +73,12 @@ static char _buf[F_BUF_CHAR];
 #define WRONG_PRIVATE_KEY_SZ_MSG "Wrong private key size"
 #define WRONG_PRIVATE_KEY_SZ "175"
 #define ERROR_CANT_PARSE_PRIVATE_KEY_TO_BINARY "Can't parse private key to binary hex %s"
+#define ERROR_NANO_WALLET_PK_TOO_LONG_MSG "Public key/Nano Wallet too long"
+#define ERROR_NANO_WALLET_PK_TOO_LONG "187"
+#define ERROR_CANT_WRITE_REP_WALLET_PK_TO_BLOCK_MSG "Can't write Representative Nano Wallet/Public key to block %s"
+#define ERROR_CANT_WRITE_LINK_TO_BLOCK_MSG "Can't write link to block %s"
+#define ERROR_CANT_CALCULATE_HASH_BLOCK_MSG "Can't calculate block hash %s"
+#define ERROR_COULD_PERFORM_BIG_NUMBER_COMPARE_MSG "Could not perform a Big number compare %s"
 
 #define MIN_PASSWORD_SZ (size_t)18
 #define PASS_MUST_HAVE (int)(F_PASS_MUST_HAVE_AT_LEAST_ONE_NUMBER|F_PASS_MUST_HAVE_AT_LEAST_ONE_SYMBOL|F_PASS_MUST_HAVE_AT_LEAST_ONE_UPPER_CASE|F_PASS_MUST_HAVE_AT_LEAST_ONE_LOWER_CASE)
@@ -119,6 +125,7 @@ int filter_no_entropy_util(uint32_t);
 int seed2keypair_util(char *, char **, char **, uint32_t, const char *, int);
 int create_object_keypair_util(napi_env, napi_value, char *, char *, uint32_t, char *);
 int extract_public_key_from_wallet_or_hex_str_util(int *, uint8_t *, char *, size_t);
+int parse_and_adjust_big_number_hex128_string_balance_util(uint8_t *, char *, size_t);
 int mynanojs_add_nano_function_util(napi_env, napi_value, void *);
 int mynanojs_add_char_constant_util(napi_env, napi_value, void *);
 int mynanojs_add_uint32_constant_util(napi_env, napi_value, void *);

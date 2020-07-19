@@ -129,6 +129,26 @@ int create_object_keypair_util(napi_env env, napi_value res, char *private_key, 
    return 0;
 }
 
+#define HEX_STRING_BIG_NUMBER (size_t)(2*sizeof(f_uint128_t))
+int parse_and_adjust_big_number_hex128_string_balance_util(uint8_t *dest, char *balance, size_t balance_sz)
+{
+   size_t tmp;
+   char hex_str_128[HEX_STRING_BIG_NUMBER+1];
+
+   if (!balance_sz)
+      return 61;
+
+   if (balance_sz>HEX_STRING_BIG_NUMBER)
+      return 62;
+
+   hex_str_128[HEX_STRING_BIG_NUMBER]=0;
+
+   if (tmp=(HEX_STRING_BIG_NUMBER-balance_sz))
+      memset(hex_str_128, '0', tmp);
+
+   return f_str_to_hex(dest, (char *)memcpy(hex_str_128+tmp, balance, balance_sz));
+}
+
 int filter_no_entropy_util(uint32_t entropy)
 {
    switch (entropy) {

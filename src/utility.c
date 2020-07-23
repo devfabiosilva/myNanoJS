@@ -146,7 +146,9 @@ int parse_and_adjust_big_number_hex128_string_balance_util(uint8_t *dest, char *
    if (tmp=(HEX_STRING_BIG_NUMBER-balance_sz))
       memset(hex_str_128, '0', tmp);
 
-   return f_str_to_hex(dest, (char *)memcpy(hex_str_128+tmp, balance, balance_sz));
+   memcpy(hex_str_128+tmp, balance, balance_sz);
+
+   return f_str_to_hex(dest, hex_str_128);
 }
 
 int filter_no_entropy_util(uint32_t entropy)

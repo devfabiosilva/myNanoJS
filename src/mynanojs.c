@@ -1038,13 +1038,21 @@ napi_value nanojs_public_key_to_wallet(napi_env env, napi_callback_info info)
 
    if (argc==1)
       prefix=NANO_PREFIX;
-   else if (napi_get_value_string_utf8(env, argv[1], prefix=(_buf+128), sizeof(NANO_PREFIX)+1, &sz_tmp)!=napi_ok) {
-      napi_throw_error(env, "178", "Can't determine Nano wallet prefix");
-      return NULL;
-   }
+   else if (napi_get_value_string_utf8(env, argv[1], prefix=(_buf+128), sizeof(NANO_PREFIX)+1, &sz_tmp)==napi_ok) {
+      if (sz_tmp==sizeof(NANO_PREFIX)) {
+         napi_throw_error(env, "179", "Wrong or invalid prefix size");
+         return NULL;
+      }
 
-   if (sz_tmp==sizeof(NANO_PREFIX)) {
-      napi_throw_error(env, "179", "Wrong or invalid prefix size");
+      prefix[sz_tmp] = 0;
+
+      if (!((is_nano_prefix(prefix, NANO_PREFIX))|(is_nano_prefix(prefix, XRB_PREFIX)))) {
+         napi_throw_error(env, "552", "Prefix is invalid");
+         return NULL;
+      }
+
+   } else {
+      napi_throw_error(env, "178", "Can't determine Nano wallet prefix");
       return NULL;
    }
 

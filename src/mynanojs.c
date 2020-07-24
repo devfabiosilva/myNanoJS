@@ -265,7 +265,7 @@ napi_value nanojs_extract_seed_from_brainwallet(napi_env env, napi_callback_info
       napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
       return NULL;
    }
-
+// brainwallet: string, salt: string, allow_mode: number(optional)
    if (argc<2) {
       napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
       return NULL;
@@ -2515,6 +2515,106 @@ nanojs_block_to_p2pow_EXIT1:
    return NULL;
 }
 
+napi_value nanojs_sign_p2pow_block(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[2], res;
+   size_t argc=2, sz_tmp;
+   uint8_t *buffer;
+   char *p;
+   F_BLOCK_TRANSFER *p2pow_block;
+
+// p2pow_block: array_buffer, private_key: hex string
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>2) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<2) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_arraybuffer_info(env, argv[0], (void **)&buffer, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "553", "Can't parse P2PoW block");
+      return NULL;
+   }
+
+   if (sz_tmp!=P2POW_BLOCK_SZ) {
+      napi_throw_error(env, "554", "Wrong P2PoW size");
+      return NULL;
+   }
+
+   if (!(p2pow_block=malloc(P2POW_BLOCK_SZ))) {
+      napi_throw_error(env, NULL, ERROR_FATAL_MALLOC);
+      return NULL;
+   }
+
+   if (f_nano_is_valid_block((F_BLOCK_TRANSFER *)memcpy(p2pow_block, buffer, P2POW_BLOCK_SZ))) {
+      if (!f_nano_is_valid_block(&p2pow_block[1]))
+         goto nanojs_sign_p2pow_block_STEP1;
+   } else {
+nanojs_sign_p2pow_block_STEP1:
+      napi_throw_error(env, "555", "Invalid P2PoW block");
+      goto nanojs_sign_p2pow_block_EXIT1;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[1], _buf, 128+1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "556",  "Can't parse Nano private key to sign P2PoW block");
+      goto nanojs_sign_p2pow_block_EXIT2;
+   }
+
+   if (sz_tmp!=128) {
+      napi_throw_error(env, WRONG_PRIVATE_KEY_SZ, WRONG_PRIVATE_KEY_SZ_MSG);
+      goto nanojs_sign_p2pow_block_EXIT2;
+   }
+
+   _buf[128]=0;
+
+   if ((err=f_str_to_hex(p=(uint8_t *)(_buf+256), _buf))) {
+      sprintf(_buf, "%d", err);
+      sprintf((char *)p, ERROR_CANT_PARSE_PRIVATE_KEY_TO_BINARY, _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)p);
+      goto nanojs_sign_p2pow_block_EXIT2;
+   }
+
+   if ((err=f_nano_sign_block(p2pow_block, &p2pow_block[1], (uint8_t *)p))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, "Can't sign P2PoW block. Error: %s", _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)(_buf+128));
+      goto nanojs_sign_p2pow_block_EXIT2;
+   }
+
+   if (napi_create_arraybuffer(env, P2POW_BLOCK_SZ, (void **)&buffer, &res)!=napi_ok) {
+      napi_throw_error(env, "557", "Can't create array buffer to store signed P2PoW Block");
+      goto nanojs_sign_p2pow_block_EXIT2;
+   }
+
+   if (napi_create_external_arraybuffer(env, memcpy(buffer, p2pow_block, P2POW_BLOCK_SZ), P2POW_BLOCK_SZ, NULL, NULL, &res)!=napi_ok) {
+      napi_throw_error(env, "558", "Can't copy array buffer to store signed P2PoW block in Javascript");
+      res=NULL;
+   }
+
+   memory_flush();
+   memset(p2pow_block, 0, P2POW_BLOCK_SZ);
+   free(p2pow_block);
+   return res;
+
+nanojs_sign_p2pow_block_EXIT2:
+   memory_flush();
+
+nanojs_sign_p2pow_block_EXIT1:
+   memset(p2pow_block, 0, P2POW_BLOCK_SZ);
+   free(p2pow_block);
+   return NULL;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
@@ -2542,6 +2642,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_sign_message", nanojs_sign_message},
    {"nanojs_bip39_to_key_pair", nanojs_bip39_to_key_pair},
    {"nanojs_block_to_p2pow", nanojs_block_to_p2pow},
+   {"nanojs_sign_p2pow_block", nanojs_sign_p2pow_block},
    {NULL, NULL}
 
 };

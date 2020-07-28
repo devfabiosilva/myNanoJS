@@ -143,7 +143,7 @@ int parse_and_adjust_big_number_hex128_string_balance_util(uint8_t *dest, char *
 
    hex_str_128[HEX_STRING_BIG_NUMBER]=0;
 
-   if (tmp=(HEX_STRING_BIG_NUMBER-balance_sz))
+   if ((tmp=(HEX_STRING_BIG_NUMBER-balance_sz)))
       memset(hex_str_128, '0', tmp);
 
    memcpy(hex_str_128+tmp, balance, balance_sz);
@@ -194,6 +194,81 @@ int extract_public_key_from_wallet_or_hex_str_util(int *prefix, uint8_t *dest, c
    }
 
    memcpy(dest, msg, 32);
+   return 0;
+}
+
+int p2pow_block_json_util(napi_env env, napi_value res, char *buf, size_t buf_sz, const char *attr_parameter, F_BLOCK_TRANSFER *block)
+{
+   int err;
+   napi_value tmp1, tmp2;
+   size_t sz_tmp;
+
+   if (napi_create_object(env, &tmp1)!=napi_ok)
+      return 60;
+
+   if (napi_create_string_utf8(env, NANO_STATE, NAPI_AUTO_LENGTH, &tmp2)!=napi_ok)
+      return 61;
+
+   if (napi_set_named_property(env, tmp1, "block_type", tmp2)!=napi_ok)
+      return 62;
+
+   if ((err=pk_to_wallet(buf, (block->prefixes&SENDER_XRB)?XRB_PREFIX:NANO_PREFIX, memcpy(buf+128, block->account, 32))))
+      return err;
+
+   if (napi_create_string_utf8(env, (const char *)buf, NAPI_AUTO_LENGTH, &tmp2)!=napi_ok)
+      return 63;
+
+   if (napi_set_named_property(env, tmp1, NANO_ACCOUNT, tmp2)!=napi_ok)
+      return 64;
+
+   if (napi_create_string_utf8(env, (const char *)f_nano_key_to_str(buf, (unsigned char *)block->previous), 64, &tmp2)!=napi_ok)
+      return 65;
+
+   if (napi_set_named_property(env, tmp1, NANO_PREVIOUS, tmp2)!=napi_ok)
+      return 66;
+
+   if ((err=pk_to_wallet(buf, (block->prefixes&REP_XRB)?XRB_PREFIX:NANO_PREFIX, memcpy(buf+128, block->representative, 32))))
+      return 67;
+
+   if (napi_create_string_utf8(env, (const char *)buf, NAPI_AUTO_LENGTH, &tmp2)!=napi_ok)
+      return 68;
+
+   if (napi_set_named_property(env, tmp1, NANO_REPRESENTATIVE, tmp2)!=napi_ok)
+      return 69;
+
+   if ((err=f_nano_balance_to_str(buf, buf_sz, &sz_tmp, block->balance)))
+      return 70;
+
+   if (napi_create_string_utf8(env, (const char *)buf, sz_tmp, &tmp2)!=napi_ok)
+      return 71;
+
+   if (napi_set_named_property(env, tmp2, NANO_BALANCE, tmp1)!=napi_ok)
+      return 72;
+
+   if (napi_create_string_utf8(env, (const char *)f_nano_key_to_str(buf, (unsigned char *)block->link), 64, &tmp2)!=napi_ok)
+      return 73;
+
+   if (napi_set_named_property(env, tmp1, NANO_LINK, tmp2)!=napi_ok)
+      return 74;
+
+   if ((err=pk_to_wallet(buf, (block->prefixes&DEST_XRB)?XRB_PREFIX:NANO_PREFIX, memcpy(buf+128, block->link, 32))))
+      return 75;
+
+   if (napi_create_string_utf8(env, (const char *)buf, NAPI_AUTO_LENGTH, &tmp2)!=napi_ok)
+      return 76;
+
+   if (napi_set_named_property(env, tmp1, NANO_LINK_AS_ACCOUNT, tmp2)!=napi_ok)
+      return 77;
+
+   if (napi_create_string_utf8(env, (const char *)fhex2strv2(buf, (unsigned char *)block->signature, 64, 1), 128, &tmp2)!=napi_ok)
+      return 78;
+
+   if (napi_set_named_property(env, tmp1, NANO_SIGNATURE, tmp2)!=napi_ok)
+      return 79;
+
+   if (napi_set_named_property(env, res, attr_parameter, tmp1)!=napi_ok)
+      return 80;
+
    return 0;
 }
 

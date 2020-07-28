@@ -79,6 +79,22 @@ static char _buf[F_BUF_CHAR];
 #define ERROR_CANT_WRITE_LINK_TO_BLOCK_MSG "Can't write link to block %s"
 #define ERROR_CANT_CALCULATE_HASH_BLOCK_MSG "Can't calculate block hash %s"
 #define ERROR_COULD_PERFORM_BIG_NUMBER_COMPARE_MSG "Could not perform a Big number compare %s"
+#define ERROR_CANT_PARSE_P2POW_BLOCK "553"
+#define ERROR_CANT_PARSE_P2POW_BLOCK_MSG "Can't parse P2PoW block"
+#define ERROR_WRONG_P2POW_SIZE "554"
+#define ERROR_WRONG_P2POW_SIZE_MSG "Wrong P2PoW size"
+#define ERROR_INVALID_P2POW_BLOCK "555"
+#define ERROR_INVALID_P2POW_BLOCK_MSG "Invalid P2PoW block"
+#define NANO_STATE "state"
+#define NANO_ACCOUNT "account"
+#define NANO_PREVIOUS "previous"
+#define NANO_REPRESENTATIVE "representative"
+#define NANO_BALANCE "balance"
+#define NANO_LINK "link"
+#define NANO_LINK_AS_ACCOUNT "link_as_account"
+#define NANO_SIGNATURE "signature"
+#define P2POW_USER_TRANSACTION "user_transaction"
+#define P2POW_WORKER_TRANSACTION "worker_transaction"
 
 #define MIN_PASSWORD_SZ (size_t)18
 #define PASS_MUST_HAVE (int)(F_PASS_MUST_HAVE_AT_LEAST_ONE_NUMBER|F_PASS_MUST_HAVE_AT_LEAST_ONE_SYMBOL|F_PASS_MUST_HAVE_AT_LEAST_ONE_UPPER_CASE|F_PASS_MUST_HAVE_AT_LEAST_ONE_LOWER_CASE)
@@ -126,6 +142,7 @@ int seed2keypair_util(char *, char **, char **, uint32_t, const char *, int);
 int create_object_keypair_util(napi_env, napi_value, char *, char *, uint32_t, char *);
 int extract_public_key_from_wallet_or_hex_str_util(int *, uint8_t *, char *, size_t);
 int parse_and_adjust_big_number_hex128_string_balance_util(uint8_t *, char *, size_t);
+int p2pow_block_json_util(napi_env, napi_value, char *, size_t, const char *, F_BLOCK_TRANSFER *);
 int mynanojs_add_nano_function_util(napi_env, napi_value, void *);
 int mynanojs_add_char_constant_util(napi_env, napi_value, void *);
 int mynanojs_add_uint32_constant_util(napi_env, napi_value, void *);

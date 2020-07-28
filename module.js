@@ -187,7 +187,8 @@ console.log(MY_NANO_JS.nanojs_verify_message(SIGNATURE, K, 'xrb_3tta9pdxr4djdcm6
 
 console.log(MY_NANO_JS.nanojs_bip39_to_key_pair('moral history analyst regular resemble belt exercise motor hungry pizza purity convince narrow ancient arrange hard affair cloth pigeon board grain all story kite', 'dictionary.dic', 159, MY_NANO_JS.XRB_PREFIX));
 
-const ACCOUNT = 'nano_3jgio5fnti1t4pmhjtdycudo8g15m3yxmdmu1zu639aqkntntqxqz7nfez1g';
+const ACCOUNT_PRIVATE_KEY = "A9DF0A9B617197896FC27102472A5C65E9C4E2CA369EF1AD6EE4A02FABE57CEBA9E801A1CFDF08A80E2423D1D0DDC257F2032E225A68CE31697E3B76F7065FC0";
+const ACCOUNT = 'xrb_3cha18iwzqrao194aayjt5gw6ozk1eq46pmasrrpkzjuguuieqy1p1cpieez';
 const BALANCE = '10.179';
 const DESTINATION_WALLET = 'nano_1pqzs6rei13ynj9uicwi8ru1sucjke41ogjmp19gaj8yq7r1rm6hd4ga3u4b';
 const VALUE_TO_SEND = '1.179';
@@ -210,7 +211,7 @@ console.log(NANO_BLOCK);
 
 const WORKER_FEE = '0.0002';
 const WORKER_REPRESENTATIVE = 'nano_3xa1xbpcrp3fqh7135aer4xjy6ug5ekst4fnakpz8o6u4eri1jss87ochr3j';
-const WORKER_WALLET = 'xrb_3cha18iwzqrao194aayjt5gw6ozk1eq46pmasrrpkzjuguuieqy1p1cpieez';
+const WORKER_WALLET = 'nano_1353i9x4azxa4ytysie3amtsooau3q38u1ctbqd6p4towdspqmownispd81q';
 
 const P2POW_BLOCK = MY_NANO_JS.nanojs_block_to_p2pow(
 	NANO_BLOCK,
@@ -220,6 +221,10 @@ const P2POW_BLOCK = MY_NANO_JS.nanojs_block_to_p2pow(
 );
 
 console.log(P2POW_BLOCK);
+
+const SIGNED_P2POW_BLOCK = MY_NANO_JS.nanojs_sign_p2pow_block(P2POW_BLOCK, ACCOUNT_PRIVATE_KEY);
+
+console.log(MY_NANO_JS.nanojs_p2pow_block_to_JSON(SIGNED_P2POW_BLOCK));
 
 /*
 console.log(MY_NANO_JS.nanojs_verify_message(signature, hashArrayBuffer, wallet)); // return true

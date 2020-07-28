@@ -618,7 +618,7 @@ napi_value nanojs_block_to_JSON(napi_env env, napi_callback_info info)
       return NULL;
    }
 
-   if (napi_create_string_utf8(env, "state", NAPI_AUTO_LENGTH, &argv)!=napi_ok) {
+   if (napi_create_string_utf8(env, NANO_STATE, NAPI_AUTO_LENGTH, &argv)!=napi_ok) {
       napi_throw_error(env, NULL, ERROR_UNABLE_TO_CREATE_ATTRIBUTE);
       return NULL;
    }
@@ -640,7 +640,7 @@ napi_value nanojs_block_to_JSON(napi_env env, napi_callback_info info)
       return NULL;
    }
 
-   if (napi_set_named_property(env, block, "account", argv)!=napi_ok) {
+   if (napi_set_named_property(env, block, NANO_ACCOUNT, argv)!=napi_ok) {
       napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
       return NULL;
    }
@@ -650,7 +650,7 @@ napi_value nanojs_block_to_JSON(napi_env env, napi_callback_info info)
       return NULL;
    }
 
-   if (napi_set_named_property(env, block, "previous", argv)!=napi_ok) {
+   if (napi_set_named_property(env, block, NANO_PREVIOUS, argv)!=napi_ok) {
       napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
       return NULL;
    }
@@ -667,7 +667,7 @@ napi_value nanojs_block_to_JSON(napi_env env, napi_callback_info info)
       return NULL;
    }
 
-   if (napi_set_named_property(env, block, "representative", argv)!=napi_ok) {
+   if (napi_set_named_property(env, block, NANO_REPRESENTATIVE, argv)!=napi_ok) {
       napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
       return NULL;
    }
@@ -684,7 +684,7 @@ napi_value nanojs_block_to_JSON(napi_env env, napi_callback_info info)
       return NULL;
    }
 
-   if (napi_set_named_property(env, block, "balance", argv)!=napi_ok) {
+   if (napi_set_named_property(env, block, NANO_BALANCE, argv)!=napi_ok) {
       napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
       return NULL;
    }
@@ -694,7 +694,7 @@ napi_value nanojs_block_to_JSON(napi_env env, napi_callback_info info)
       return NULL;
    }
 
-   if (napi_set_named_property(env, block, "link", argv)!=napi_ok) {
+   if (napi_set_named_property(env, block, NANO_LINK, argv)!=napi_ok) {
       napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
       return NULL;
    }
@@ -711,7 +711,7 @@ napi_value nanojs_block_to_JSON(napi_env env, napi_callback_info info)
       return NULL;
    }
 
-   if (napi_set_named_property(env, block, "link_as_account", argv)!=napi_ok) {
+   if (napi_set_named_property(env, block, NANO_LINK_AS_ACCOUNT, argv)!=napi_ok) {
       napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
       return NULL;
    }
@@ -721,7 +721,7 @@ napi_value nanojs_block_to_JSON(napi_env env, napi_callback_info info)
       return NULL;
    }
 
-   if (napi_set_named_property(env, block, "signature", argv)!=napi_ok) {
+   if (napi_set_named_property(env, block, NANO_SIGNATURE, argv)!=napi_ok) {
       napi_throw_error(env, NULL, ERROR_CANT_ADD_ATTRIBUTE_TO_NANO_JSON_BLOCK);
       return NULL;
    }
@@ -2542,12 +2542,12 @@ napi_value nanojs_sign_p2pow_block(napi_env env, napi_callback_info info)
    }
 
    if (napi_get_arraybuffer_info(env, argv[0], (void **)&buffer, &sz_tmp)!=napi_ok) {
-      napi_throw_error(env, "553", "Can't parse P2PoW block");
+      napi_throw_error(env, ERROR_CANT_PARSE_P2POW_BLOCK, ERROR_CANT_PARSE_P2POW_BLOCK_MSG);
       return NULL;
    }
 
    if (sz_tmp!=P2POW_BLOCK_SZ) {
-      napi_throw_error(env, "554", "Wrong P2PoW size");
+      napi_throw_error(env, ERROR_WRONG_P2POW_SIZE, ERROR_WRONG_P2POW_SIZE_MSG);
       return NULL;
    }
 
@@ -2561,7 +2561,7 @@ napi_value nanojs_sign_p2pow_block(napi_env env, napi_callback_info info)
          goto nanojs_sign_p2pow_block_STEP1;
    } else {
 nanojs_sign_p2pow_block_STEP1:
-      napi_throw_error(env, "555", "Invalid P2PoW block");
+      napi_throw_error(env, ERROR_INVALID_P2POW_BLOCK, ERROR_INVALID_P2POW_BLOCK_MSG);
       goto nanojs_sign_p2pow_block_EXIT1;
    }
 
@@ -2615,6 +2615,72 @@ nanojs_sign_p2pow_block_EXIT1:
    return NULL;
 }
 
+napi_value nanojs_p2pow_block_to_JSON(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[1], res;
+   size_t argc=1, sz_tmp;
+   char *p;
+   F_BLOCK_TRANSFER *p2pow_block;
+
+// p2pow_block: array_buffer
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>1) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<1) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_arraybuffer_info(env, argv[0], (void **)&p2pow_block, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_PARSE_P2POW_BLOCK, ERROR_CANT_PARSE_P2POW_BLOCK_MSG);
+      return NULL;
+   }
+
+   if (sz_tmp!=P2POW_BLOCK_SZ) {
+      napi_throw_error(env, ERROR_WRONG_P2POW_SIZE, ERROR_WRONG_P2POW_SIZE_MSG);
+      return NULL;
+   }
+
+   if (f_nano_is_valid_block(p2pow_block)) {
+      if (!f_nano_is_valid_block(&p2pow_block[1]))
+         goto nanojs_p2pow_block_to_JSON_STEP1;
+   } else {
+nanojs_p2pow_block_to_JSON_STEP1:
+      napi_throw_error(env, ERROR_INVALID_P2POW_BLOCK, ERROR_INVALID_P2POW_BLOCK_MSG);
+      return NULL;
+   }
+
+   if (napi_create_object(env, &res)!=napi_ok) {
+      napi_throw_error(env, "559", "Unable to create P2PoW Block to parse to JavaScript");
+      return NULL;
+   }
+
+   if ((err=p2pow_block_json_util(env, res, _buf, sizeof(_buf), P2POW_USER_TRANSACTION, p2pow_block))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, "Can't set \"user_transaction\" parameter in P2PoW block %s", _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)(_buf+128));
+      return NULL;
+   }
+
+   if ((err=p2pow_block_json_util(env, res, _buf, sizeof(_buf), P2POW_WORKER_TRANSACTION, &p2pow_block[1]))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, "Can't set \"worker_transaction\" parameter in P2PoW block %s", _buf);
+      napi_throw_error(env, (const char *)_buf, (const char *)(_buf+128));
+      res=NULL;
+   }
+
+   return res;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
@@ -2643,6 +2709,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_bip39_to_key_pair", nanojs_bip39_to_key_pair},
    {"nanojs_block_to_p2pow", nanojs_block_to_p2pow},
    {"nanojs_sign_p2pow_block", nanojs_sign_p2pow_block},
+   {"nanojs_p2pow_block_to_JSON", nanojs_p2pow_block_to_JSON},
    {NULL, NULL}
 
 };

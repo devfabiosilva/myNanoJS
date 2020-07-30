@@ -204,7 +204,7 @@ napi_value nanojs_pow(napi_env env, napi_callback_info info)
       }
 
       if (!lossless) {
-         napi_throw_error(env, "125", "Precision loss in threshold big int");
+         napi_throw_error(env, ERROR_THRESHOLD_BIG_INT, ERROR_THRESHOLD_BIG_INT_MSG);
          return NULL;
       }
    }
@@ -1025,7 +1025,7 @@ napi_value nanojs_public_key_to_wallet(napi_env env, napi_callback_info info)
       napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
       return NULL;
    }
-
+// public key: string, prefix: string (optional)
    if (argc>2) {
       napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
       return NULL;
@@ -1508,7 +1508,7 @@ napi_value nanojs_gen_seed_to_encrypted_stream(napi_env env, napi_callback_info 
       napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
       return NULL;
    }
-
+// (seed: string|ArrayBuffer) | (entropy: number), password: string
    if (argc>2) {
       napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
       return NULL;
@@ -2577,7 +2577,7 @@ nanojs_sign_p2pow_block_STEP1:
 
    _buf[128]=0;
 
-   if ((err=f_str_to_hex(p=(uint8_t *)(_buf+256), _buf))) {
+   if ((err=f_str_to_hex((uint8_t *)(p=_buf+256), _buf))) {
       sprintf(_buf, "%d", err);
       sprintf((char *)p, ERROR_CANT_PARSE_PRIVATE_KEY_TO_BINARY, _buf);
       napi_throw_error(env, (const char *)_buf, (const char *)p);
@@ -2620,7 +2620,6 @@ napi_value nanojs_p2pow_block_to_JSON(napi_env env, napi_callback_info info)
    int err;
    napi_value argv[1], res;
    size_t argc=1, sz_tmp;
-   char *p;
    F_BLOCK_TRANSFER *p2pow_block;
 
 // p2pow_block: array_buffer
@@ -2681,6 +2680,133 @@ nanojs_p2pow_block_to_JSON_STEP1:
    return res;
 }
 
+napi_value nanojs_verify_work(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[3], res;
+   size_t argc=3, sz_tmp;
+   uint8_t *buffer;
+   char *p;
+   bool lossless;
+   uint64_t threshold, work;
+
+// hash: string|ArrayBuffer, work: number, threshold: number (Optional)
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>3) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<2) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_arraybuffer_info(env, argv[0], (void **)&buffer, &sz_tmp)==napi_ok) {
+      if (sz_tmp!=32) {
+         napi_throw_error(env, "560", "Wrong hash size in ArrayBuffer");
+         return NULL;
+      }
+   } else if (napi_get_value_string_utf8(env, argv[0], p=(_buf+128), 65+1, &sz_tmp)==napi_ok) {
+      if (sz_tmp!=64) {
+         napi_throw_error(env, "561", "Wrong hash size in hex string");
+         return NULL;
+      }
+
+      p[64]=0;
+
+      if ((err=f_str_to_hex(buffer=(uint8_t *)_buf, p))) {
+         sprintf(_buf, "%d", err);
+         sprintf(p, "Can't parse hash string to hex binary %s", _buf);
+         napi_throw_error(env, (const char *)_buf, (const char *)p);
+         return NULL;
+      }
+   } else {
+      napi_throw_error(env, "562", "Can't parse hash for verify work");
+      return NULL;
+   }
+
+   if (napi_get_value_bigint_uint64(env, argv[1], &work, &lossless)!=napi_ok) {
+      napi_throw_error(env, "563", "Error when parsing work");
+      return NULL;
+   }
+
+   if (!lossless) {
+      napi_throw_error(env, "564", "Precision loss in work big int");
+      return NULL;
+   }
+
+   if (argc==3) {
+      if (napi_get_value_bigint_uint64(env, argv[2], &threshold, &lossless)!=napi_ok) {
+         napi_throw_error(env, "565", "Error when parsing threshold");
+         return NULL;
+      }
+
+      if (!lossless) {
+         napi_throw_error(env, ERROR_THRESHOLD_BIG_INT, ERROR_THRESHOLD_BIG_INT_MSG);
+         return NULL;
+      }
+   } else
+      threshold=F_DEFAULT_THRESHOLD;
+
+   if ((err=f_verify_work((uint64_t *)(p=_buf+128), (const unsigned char *)buffer, &work, threshold))<0) {
+      napi_throw_error(env, "566", "Can't verify work");
+      return NULL;
+   }
+
+   if (napi_create_object(env, &res)!=napi_ok) {
+      napi_throw_error(env, "567", "Unable to create work result to JavaScript object");
+      return NULL;
+   }
+
+   if (napi_create_int32(env, err, &argv[0])!=napi_ok) {
+      napi_throw_error(env, "568", "Unable to parse work result");
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, res, "valid", argv[0])!=napi_ok) {
+      napi_throw_error(env, "569", "Unable to parse work property ");
+      return NULL;
+   }
+
+   if (napi_create_bigint_uint64(env, (uint64_t )*((uint64_t *)p), &argv[0])!=napi_ok) {
+      napi_throw_error(env, "570", "Unable to parse big int difficulty result");
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, res, "difficulty", argv[0])!=napi_ok) {
+      napi_throw_error(env, "571", "Unable to parse difficulty property ");
+      return NULL;
+   }
+
+   if (napi_create_bigint_uint64(env, threshold, &argv[0])!=napi_ok) {
+      napi_throw_error(env, "572", "Unable to parse big int base difficulty result");
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, res, "base_difficulty", argv[0])!=napi_ok) {
+      napi_throw_error(env, "573", "Unable to parse base difficulty property ");
+      return NULL;
+   }
+
+   if (napi_create_double(env, to_multiplier((uint64_t)*((uint64_t *)p), threshold), &argv[0])!=napi_ok) {
+      napi_throw_error(env, "574", "Unable to parse multiplier result");
+      return NULL;
+   }
+
+   if (napi_set_named_property(env, res, "multiplier", argv[0])!=napi_ok) {
+      napi_throw_error(env, "575", "Unable to parse multiplier property ");
+      return NULL;
+   }
+
+   return res;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
@@ -2710,6 +2836,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_block_to_p2pow", nanojs_block_to_p2pow},
    {"nanojs_sign_p2pow_block", nanojs_sign_p2pow_block},
    {"nanojs_p2pow_block_to_JSON", nanojs_p2pow_block_to_JSON},
+   {"nanojs_verify_work", nanojs_verify_work},
    {NULL, NULL}
 
 };

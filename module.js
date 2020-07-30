@@ -226,6 +226,10 @@ const SIGNED_P2POW_BLOCK = MY_NANO_JS.nanojs_sign_p2pow_block(P2POW_BLOCK, ACCOU
 
 console.log(MY_NANO_JS.nanojs_p2pow_block_to_JSON(SIGNED_P2POW_BLOCK));
 
+
+console.log(MY_NANO_JS.nanojs_verify_work("D3A135233738A8820F434C4E7284166E1DAC1430E13210D0835603D85F800A13", 0x77440ffdc667add6n)); //valid
+console.log(MY_NANO_JS.nanojs_verify_work("D3A135233738A8820F434C4E7284166E1DAC1430E13210D0835603D85F800A13", 0x77440ffdc667add6n, 0xffffffffc667add6n)); // invalid
+console.log(MY_NANO_JS.nanojs_verify_work("C3A135233738A8820F434C4E7284166E1DAC1430E13210D0835603D85F800A13", 0x77440ffdc667add6n)); //invalid
 /*
 console.log(MY_NANO_JS.nanojs_verify_message(signature, hashArrayBuffer, wallet)); // return true
 //console.log(MY_NANO_JS.nanojs_wallet_to_public_key('nano_3xinwsdt57qo5bcysock15do87r9fuepq84erab5udm6wekymq9e9tiin8hw'));

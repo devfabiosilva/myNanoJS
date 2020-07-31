@@ -210,7 +210,7 @@ napi_value nanojs_pow(napi_env env, napi_callback_info info)
    }
 
    if (napi_get_value_int32(env, argv[1], &n_thr)!=napi_ok) {
-      napi_throw_error(env, "126", "Error when parsing CPU number of threads");
+      napi_throw_error(env, ERROR_PARSING_NO_OF_THREADS, ERROR_PARSING_NO_OF_THREADS_MSG);
       return NULL;
    }
 
@@ -237,7 +237,7 @@ napi_value nanojs_pow(napi_env env, napi_callback_info info)
 
    if ((err=f_nano_pow((uint64_t *)_buf, (unsigned char *)(_buf+128), (const uint64_t)threshold, (int)n_thr))) {
       sprintf(_buf, "%d", err);
-      napi_throw_error(env, _buf, "Internal error in myNanoEmbedded C function 'f_nano_pow'");
+      napi_throw_error(env, _buf, ERROR_INTERNAL_ERROR_MSG);
    }
 
    f_random_detach();
@@ -571,12 +571,12 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
    nano_block.preamble[31]=0x06;
 
    if (napi_create_arraybuffer(env, sizeof(nano_block), (void **)&p, &res)!=napi_ok) {
-      napi_throw_error(env, "155", "Can't create array buffer to store Nano Block");
+      napi_throw_error(env, ERROR_CANT_STORE_NANO_BLOCK, ERROR_CANT_STORE_NANO_BLOCK_MSG);
       return NULL;
    }
 
    if (napi_create_external_arraybuffer(env, memcpy(p, &nano_block, sizeof(nano_block)), sizeof(nano_block), NULL, NULL, &res)!=napi_ok) {
-      napi_throw_error(env, "156", "Can't copy array buffer to store Nano Block in Javascript");
+      napi_throw_error(env, ERROR_CANT_COPY_NANO_BLOCK, ERROR_CANT_COPY_NANO_BLOCK_MSG);
       return NULL;
    }
 
@@ -2807,6 +2807,93 @@ napi_value nanojs_verify_work(napi_env env, napi_callback_info info)
    return res;
 }
 
+napi_value nanojs_calculate_work_from_block(napi_env env, napi_callback_info info)
+{
+   int err, n_thr;
+   napi_value argv[3], res;
+   size_t argc=3, sz_tmp;
+   F_BLOCK_TRANSFER *buffer;
+   uint64_t threshold;
+   bool lossless;
+
+// block: ArrayBuffer, numberOfThreads: number, threshold: number (optional)
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>3) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<2) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (argc==3) {
+      if (napi_get_value_bigint_uint64(env, argv[2], &threshold, &lossless)!=napi_ok) {
+         napi_throw_error(env, "576", "Error when parsing selected threshold");
+         return NULL;
+      }
+
+      if (!lossless) {
+         napi_throw_error(env, "577", "Precision loss in selected threshold big int");
+         return NULL;
+      }
+   } else
+      threshold=F_DEFAULT_THRESHOLD;
+
+   if (napi_get_value_int32(env, argv[1], &n_thr)!=napi_ok) {
+      napi_throw_error(env, ERROR_PARSING_NO_OF_THREADS, ERROR_PARSING_NO_OF_THREADS_MSG);
+      return NULL;
+   }
+
+   if (napi_get_arraybuffer_info(env, argv[0], (void **)&buffer, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_READ_NANO_BLOCK_NUMBER, ERROR_CANT_READ_NANO_BLOCK);
+      return NULL;
+   }
+
+   if (sz_tmp!=sizeof(F_BLOCK_TRANSFER)) {
+      napi_throw_error(env, WRONG_NANO_BLOCK_SZ_ERR, WRONG_NANO_BLOCK_SZ);
+      return NULL;
+   }
+
+   if (!f_nano_is_valid_block((F_BLOCK_TRANSFER *)buffer)) {
+      napi_throw_error(env, ERROR_INVALID_NANO_BLK_NUMBER, ERROR_INVALID_NANO_BLK);
+      return NULL;
+   }
+
+   memcpy(_buf, buffer, sz_tmp);
+   buffer=(F_BLOCK_TRANSFER *)_buf;
+
+   f_random_attach(gen_rand_no_entropy);
+
+   if ((err=f_nano_pow(&buffer->work, (unsigned char *)buffer->previous, (const uint64_t)threshold, (int)n_thr))) {
+      sprintf(_buf, "%d", err);
+      napi_throw_error(env, (const char *)_buf, ERROR_INTERNAL_ERROR_MSG);
+   }
+
+   f_random_detach();
+
+   if (err)
+      return NULL;
+
+   if (napi_create_arraybuffer(env, sz_tmp, (void **)&buffer, &res)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_STORE_NANO_BLOCK, ERROR_CANT_STORE_NANO_BLOCK_MSG);
+      return NULL;
+   }
+
+   if (napi_create_external_arraybuffer(env, memcpy(buffer, _buf, sz_tmp), sz_tmp, NULL, NULL, &res)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_COPY_NANO_BLOCK, ERROR_CANT_COPY_NANO_BLOCK_MSG);
+      return NULL;
+   }
+
+   return res;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
@@ -2837,6 +2924,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_sign_p2pow_block", nanojs_sign_p2pow_block},
    {"nanojs_p2pow_block_to_JSON", nanojs_p2pow_block_to_JSON},
    {"nanojs_verify_work", nanojs_verify_work},
+   {"nanojs_calculate_work_from_block", nanojs_calculate_work_from_block},
    {NULL, NULL}
 
 };

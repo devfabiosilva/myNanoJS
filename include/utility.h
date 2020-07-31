@@ -97,6 +97,13 @@ static char _buf[F_BUF_CHAR];
 #define P2POW_WORKER_TRANSACTION "worker_transaction"
 #define ERROR_THRESHOLD_BIG_INT_MSG "Precision loss in threshold big int"
 #define ERROR_THRESHOLD_BIG_INT "125"
+#define ERROR_INTERNAL_ERROR_MSG "Internal error in myNanoEmbedded C function 'f_nano_pow'"
+#define ERROR_PARSING_NO_OF_THREADS "126"
+#define ERROR_PARSING_NO_OF_THREADS_MSG "Error when parsing CPU number of threads"
+#define ERROR_CANT_STORE_NANO_BLOCK "155"
+#define ERROR_CANT_STORE_NANO_BLOCK_MSG "Can't create array buffer to store Nano Block"
+#define ERROR_CANT_COPY_NANO_BLOCK "156"
+#define ERROR_CANT_COPY_NANO_BLOCK_MSG "Can't copy to array buffer to store Nano Block in Javascript"
 
 #define MIN_PASSWORD_SZ (size_t)18
 #define PASS_MUST_HAVE (int)(F_PASS_MUST_HAVE_AT_LEAST_ONE_NUMBER|F_PASS_MUST_HAVE_AT_LEAST_ONE_SYMBOL|F_PASS_MUST_HAVE_AT_LEAST_ONE_UPPER_CASE|F_PASS_MUST_HAVE_AT_LEAST_ONE_LOWER_CASE)

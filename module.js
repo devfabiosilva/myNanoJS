@@ -235,6 +235,10 @@ console.log(MY_NANO_JS.nanojs_block_to_JSON(NANO_BLOCK));
 K=MY_NANO_JS.nanojs_calculate_work_from_block(NANO_BLOCK, 4);
 console.log(K);
 console.log(MY_NANO_JS.nanojs_block_to_JSON(K));
+console.log(MY_NANO_JS.nanojs_get_balance_from_block(K));
+console.log(MY_NANO_JS.nanojs_get_balance_from_block(K, MY_NANO_JS.BALANCE_RAW_128));
+console.log(MY_NANO_JS.nanojs_get_balance_from_block(K, MY_NANO_JS.BALANCE_REAL_STRING));
+console.log(MY_NANO_JS.nanojs_get_balance_from_block(K, MY_NANO_JS.BALANCE_RAW_STRING));
 
 /*
 console.log(MY_NANO_JS.nanojs_verify_message(signature, hashArrayBuffer, wallet)); // return true

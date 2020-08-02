@@ -2894,6 +2894,91 @@ napi_value nanojs_calculate_work_from_block(napi_env env, napi_callback_info inf
    return res;
 }
 
+napi_value nanojs_get_balance_from_block(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[2], res;
+   F_BLOCK_TRANSFER *buffer;
+   uint32_t type;
+   size_t argc=2, sz_tmp;
+   char *p;
+
+// block: ArrayBuffer, balance_type: number (optional)
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc>2) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (argc<1) {
+      napi_throw_error(env, NULL, ERROR_MISSING_ARGS);
+      return NULL;
+   }
+
+   if (napi_get_arraybuffer_info(env, argv[0], (void **)&buffer, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, ERROR_CANT_READ_NANO_BLOCK_NUMBER, ERROR_CANT_READ_NANO_BLOCK);
+      return NULL;
+   }
+
+   if (sz_tmp!=sizeof(F_BLOCK_TRANSFER)) {
+      napi_throw_error(env, WRONG_NANO_BLOCK_SZ_ERR, WRONG_NANO_BLOCK_SZ);
+      return NULL;
+   }
+
+   if (!f_nano_is_valid_block((F_BLOCK_TRANSFER *)buffer)) {
+      napi_throw_error(env, ERROR_INVALID_NANO_BLK_NUMBER, ERROR_INVALID_NANO_BLK);
+      return NULL;
+   }
+
+   if (argc==2) {
+      if (napi_get_value_uint32(env, argv[1], &type)!=napi_ok) {
+         napi_throw_error(env, "578", "Can't parse type");
+         return NULL;
+      }
+   } else
+      type=BALANCE_REAL_STRING;
+
+   switch (type) {
+      case BALANCE_REAL_STRING:
+         if ((err=f_nano_raw_to_string(_buf, &sz_tmp, sizeof(_buf), buffer->balance, F_RAW_TO_STR_UINT128))) {
+nanojs_get_balance_from_block_STEP1:
+            sprintf(_buf, "%d", err);
+            sprintf(p=_buf+128, "Error. Can't convert binary hex %s", _buf);
+            napi_throw_error(env, (const char *)_buf, (const char *)p);
+            return NULL;
+         }
+
+         break;
+
+      case BALANCE_RAW_STRING:
+         if ((err=f_nano_balance_to_str(_buf, sizeof(_buf), &sz_tmp, buffer->balance)))
+            goto nanojs_get_balance_from_block_STEP1;
+
+         break;
+
+       case BALANCE_RAW_128:
+          fhex2strv2(_buf, buffer->balance, sizeof(f_uint128_t), 0);
+          sz_tmp=2*sizeof(f_uint128_t);
+          break;
+
+      default:
+         napi_throw_error(env, "579", "Unknown type. Can't parse balance");
+         return NULL;
+   }
+
+   if (napi_create_string_utf8(env, (const char *)_buf, sz_tmp, &res)!=napi_ok) {
+      napi_throw_error(env, "580", "Can't parse balance to JavaScript");
+      res=NULL;
+   }
+
+   return res;
+}
+
 MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
 
    {"nanojs_license", nanojs_license},
@@ -2925,6 +3010,7 @@ MY_NANO_JS_FUNCTION NANO_JS_FUNCTIONS[] = {
    {"nanojs_p2pow_block_to_JSON", nanojs_p2pow_block_to_JSON},
    {"nanojs_verify_work", nanojs_verify_work},
    {"nanojs_calculate_work_from_block", nanojs_calculate_work_from_block},
+   {"nanojs_get_balance_from_block", nanojs_get_balance_from_block},
    {NULL, NULL}
 
 };

@@ -2168,7 +2168,7 @@ napi_value nanojs_sign_message(napi_env env, napi_callback_info info)
       napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
       return NULL;
    }
-
+// message: ArrayBuffer, private_key: string
    if (argc>2) {
       napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
       return NULL;
@@ -2180,7 +2180,7 @@ napi_value nanojs_sign_message(napi_env env, napi_callback_info info)
    }
 
    if (napi_get_value_string_utf8(env, argv[1], p=(_buf+128), (sizeof(_buf)-128)+1, &sz_tmp)!=napi_ok) {
-      napi_throw_error(env, ERROR_CANT_PARSE_PASSWORD, ERROR_CANT_PARSE_PASSWORD_MSG);
+      napi_throw_error(env, ERROR_CANT_PARSE_PRIVATE_KEY, ERROR_CANT_PARSE_PRIVATE_KEY_MSG);
       goto nanojs_sign_message_EXIT1;
    }
 

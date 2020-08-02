@@ -37,6 +37,8 @@ static char _buf[F_BUF_CHAR];
 #define ERROR_CANT_GENERATE_ENTROPY "Can't generate Nano SEED given entropy %s"
 #define ERROR_CANT_PARSE_PASSWORD_MSG "Can't parse Password to C string"
 #define ERROR_CANT_PARSE_PASSWORD "501"
+#define ERROR_CANT_PARSE_PRIVATE_KEY "578"
+#define ERROR_CANT_PARSE_PRIVATE_KEY_MSG "Can't parse private key to sign message"
 #define NO_ENTROPY_FOUND_MSG "No entropy found"
 #define NO_ENTROPY_FOUND "515"
 #define ERROR_EMPTY_PASSWORD_MSG "Empty password"

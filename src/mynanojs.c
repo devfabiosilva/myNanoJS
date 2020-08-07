@@ -411,12 +411,11 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
             return NULL;
          }
 
-         p=(uint8_t *)_buf;
       } else if (sz_tmp) {
          napi_throw_error(env, "143", "Invalid previous block size");
          return NULL;
       } else
-         p=nano_block.account;
+         memset(_buf, 0, 32);
 
    } else {
       if (napi_get_null(env, &argv[1])!=napi_ok) {
@@ -424,10 +423,10 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
          return NULL;
       }
 
-      p=nano_block.account;
+      memset(_buf, 0, 32);
    }
 
-   memcpy(nano_block.previous, p, 32);
+   memcpy(nano_block.previous, _buf, 32);
 
    if (napi_get_value_string_utf8(env, argv[2], _buf, sizeof(_buf), &sz_tmp)!=napi_ok) {
       napi_throw_error(env, "146", "Can't parse representative to Nano block");
@@ -645,7 +644,7 @@ napi_value nanojs_block_to_JSON(napi_env env, napi_callback_info info)
       return NULL;
    }
 
-   if (napi_create_string_utf8(env, (const char *)f_nano_key_to_str(_buf, (unsigned char *)nano_block.previous), NAPI_AUTO_LENGTH, &argv)!=napi_ok) {
+   if (napi_create_string_utf8(env, (const char *)f_nano_key_to_str(_buf, (unsigned char *)nano_block.previous), 64, &argv)!=napi_ok) {
       napi_throw_error(env, NULL, ERROR_UNABLE_TO_CREATE_ATTRIBUTE);
       return NULL;
    }
@@ -942,7 +941,7 @@ napi_value nanojs_sign_block(napi_env env, napi_callback_info info)
       napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
       return NULL;
    }
-
+// block: ArrayBuffer, private_key: string
    if (argc>2) {
       napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
       return NULL;
@@ -2871,7 +2870,9 @@ napi_value nanojs_calculate_work_from_block(napi_env env, napi_callback_info inf
 
    f_random_attach(gen_rand_no_entropy);
 
-   if ((err=f_nano_pow(&buffer->work, (unsigned char *)buffer->previous, (const uint64_t)threshold, (int)n_thr))) {
+   if ((err=f_nano_pow(&buffer->work, (is_null_hash(buffer->previous))?(unsigned char *)(buffer->account):(unsigned char *)(buffer->previous),
+      (const uint64_t)threshold, (int)n_thr))) {
+
       sprintf(_buf, "%d", err);
       napi_throw_error(env, (const char *)_buf, ERROR_INTERNAL_ERROR_MSG);
    }

@@ -525,7 +525,8 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
 
    type|=type_tmp;
 
-   if (memcmp(nano_block.account, nano_block.previous, 32)==0) {
+   //if (memcmp(nano_block.account, nano_block.previous, 32)==0) {
+   if (is_null_hash(nano_block.previous)) {
       if (type_tmp&VALUE_TO_SEND) {
          napi_throw_error(env, "160", "You cannot send amount in genesis block");
          return NULL;

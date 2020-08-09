@@ -242,7 +242,7 @@ int p2pow_block_json_util(napi_env env, napi_value res, char *buf, size_t buf_sz
    if (napi_create_string_utf8(env, (const char *)buf, sz_tmp, &tmp2)!=napi_ok)
       return 71;
 
-   if (napi_set_named_property(env, tmp2, NANO_BALANCE, tmp1)!=napi_ok)
+   if (napi_set_named_property(env, tmp1, NANO_BALANCE, tmp2)!=napi_ok)
       return 72;
 
    if (napi_create_string_utf8(env, (const char *)f_nano_key_to_str(buf, (unsigned char *)block->link), 64, &tmp2)!=napi_ok)

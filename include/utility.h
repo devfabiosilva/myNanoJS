@@ -96,7 +96,7 @@ static char _buf[F_BUF_CHAR];
 #define NANO_LINK_AS_ACCOUNT "link_as_account"
 #define NANO_SIGNATURE "signature"
 #define P2POW_USER_TRANSACTION "user_transaction"
-#define P2POW_WORKER_TRANSACTION "worker_transaction"
+#define P2POW_WORKER_TRANSACTION "reward_transaction"
 #define ERROR_THRESHOLD_BIG_INT_MSG "Precision loss in threshold big int"
 #define ERROR_THRESHOLD_BIG_INT "125"
 #define ERROR_INTERNAL_ERROR_MSG "Internal error in myNanoEmbedded C function 'f_nano_pow'"

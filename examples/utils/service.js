@@ -1,0 +1,7 @@
+const NANO_NODE_SRV = "YOUR_NANO_NODE_SERVICE_HERE";
+const P2POW_SRV = "YOUR_P2POW_SERVICE_HERE";
+
+module.exports = {
+   NANO_NODE_SRV, P2POW_SRV
+}
+

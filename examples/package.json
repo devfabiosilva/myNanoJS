@@ -1,0 +1,29 @@
+{
+  "name": "nanojs_examples",
+  "version": "0.1.0",
+  "description": "NanoJS examples for myNanoJS API",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/devfabiosilva/myNanoJS.git"
+  },
+  "keywords": [
+    "nano",
+    "cryptocurrency",
+    "blockchain",
+    "bitcoin",
+    "nodejs"
+  ],
+  "author": "Fábio Pereira da Silva",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/devfabiosilva/myNanoJS/issues"
+  },
+  "homepage": "https://github.com/devfabiosilva/myNanoJS#readme",
+  "dependencies": {
+    "axios": "^0.19.2"
+  }
+}

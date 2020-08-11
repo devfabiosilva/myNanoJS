@@ -47,12 +47,12 @@ const SEED = '3B9B326FBFFF8F155846475551171D39ED6C2476773727D9BF5566348414C601';
 const KEY_PAIR = NANOJS.nanojs_seed_to_keypair(SEED, 0);
 const EXTENDED_PRIVATE_KEY = `${KEY_PAIR.private_key}${KEY_PAIR.public_key}`;
 const ACCOUNT = KEY_PAIR.wallet;
-const PREVIOUS = 'DCF264304734069EAEBD36DE6EE490F9E436B0DC0C14864E9FFE3FA9B045EF8F';
-const BALANCE = '0.0499';
-const VALUE_TO_SEND_OR_RECEIVE = '0.0498';
+const PREVIOUS = '2A76F2BA48A2FDF7F47C5ACBBDEF3DCDFD6A11D58964A75FD24D61CD60BC9027';
+const BALANCE = '0.0019';
+const VALUE_TO_SEND_OR_RECEIVE = '0.0018';
 const REPRESENTATIVE = "nano_3ngt59dc7hbsjd1dum1bw9wbb87mbtuj4qkwcruididsb5rhgdt9zb4w7kb9";
 const DESTINATION_WALLET_OR_LINK = "nano_1fxuu796gedchbroruccmehk6fdxbnz5y5eunhytdqrne1zg5qfcfhphiyey";
-//const DESTINATION_WALLET_OR_LINK = '490A9A5C2B933157582B255F0158FF40FBB165264B8297A66EBC674CDA89530C';
+//const DESTINATION_WALLET_OR_LINK = '8D2A639808E900DE1AA09522CFD045B3B089A934B650FA891F8E110A94AD65DA';
 const MAX_FEE = "0.0001";
 
 // Result of this transaction in Nano Blockchain:
@@ -107,7 +107,7 @@ function verifyFee(fee) {
 async function main() {
    let p2pow_info,
        conditional,
-       worker_representative,
+       //worker_representative,
        nano_block,
        p2pow_block,
        signed_p2pow_block,
@@ -133,6 +133,7 @@ async function main() {
    }
 
    console.log(`Fee allowed. Max allowed fee is ${MAX_FEE}`);
+/*
    console.log("Getting worker representative")
    worker_representative = await nano_rpc_account_representative(p2pow_info.reward_account).catch((err) => worker_representative = err);
 
@@ -142,6 +143,7 @@ async function main() {
    }
 
    console.log(`Worker representative is ${worker_representative.representative}`);
+*/
    console.log("Creating Nano block ...");
 
    try {
@@ -170,7 +172,7 @@ async function main() {
       p2pow_block = NANOJS.nanojs_block_to_p2pow(
          nano_block,
          p2pow_info.reward_account,
-         worker_representative.representative,
+         null,//worker_representative.representative,
          p2pow_info.fee,
          NANOJS.NANO_BIG_NUMBER_TYPE.WORKER_FEE_RAW
       );

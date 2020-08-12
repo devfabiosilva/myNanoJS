@@ -20,6 +20,12 @@ This example shows how to send/receive Nano using myNanoJS with P2PoW API
 
 ## Before you install
 
+You must create your SEED and to send/receive amounts
+
+### WARNING
+
+Don't use your own SEED. Create a new one for testing and send ONLY SMALL AMOUNT. You can send a very little amount: 0.003 Nanos for example
+
 ## Installing
 
 ```sh

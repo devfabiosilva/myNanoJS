@@ -1,7 +1,7 @@
 // 2020-08-08 18:34:41 
 // Author: Fábio Pereira da Silva
 // License: MIT
-// myNanoJS: JavaScript using C bindings for Nano cryptocurrency/IoT/P2PoW support
+// myNanoJS: JavaScript C bindings for Nano cryptocurrency/IoT/P2PoW support
 
 /*
  * Peer 2 PoW Proof of Concept
@@ -22,7 +22,7 @@
  *      4- Create P2PoW block
  *      5- Sign P2PoW block
  *      6- Parse P2PoW block to JSON
- *      7- Request work
+ *      7- Request work and store transaction to Nano Blockchain
  *
  *
  *
@@ -53,7 +53,7 @@ const p2pow_api = axios.create({
 });
 
 // Block example. Don't use this SEED and private keys in this example to send/receive transaction
-// When testing this example. Create a new SEED using nanojs_generate_seed function.
+// When testing this example create a new SEED using nanojs_generate_seed function.
 // This is a Proof of Concept. Do any transaction with small amount
 
 // SEED. Create one SEED using NANOJS.nanojs_generate_seed(NANOJS.ENTROPY_TYPE.ENTROPY_TYPE_EXCELENT)
@@ -85,8 +85,8 @@ const ACCOUNT = KEY_PAIR.wallet;
 // Previous block. Empty string means first transaction
 const PREVIOUS = '2A76F2BA48A2FDF7F47C5ACBBDEF3DCDFD6A11D58964A75FD24D61CD60BC9027';
 
-const BALANCE = '0.0019'; // Current balance in this account
-const VALUE_TO_SEND_OR_RECEIVE = '0.0018'; // Value to receive (open block) or value do send
+const BALANCE = '0.0019'; // Current balance in this account in real string
+const VALUE_TO_SEND_OR_RECEIVE = '0.0018'; // Value to receive (open block) or value do send in real string
 const REPRESENTATIVE = "nano_3ngt59dc7hbsjd1dum1bw9wbb87mbtuj4qkwcruididsb5rhgdt9zb4w7kb9"; // Account representative
 
 // Destination wallet or link: Your destination wallet to send Nano or link to receive Nano
@@ -115,7 +115,7 @@ async function getP2POWInfo() {
 }
 
 /*
- * Request work
+ * Request work information (worker fee, worker wallet
  */
 async function requestPow(signedP2PoWJSON) {
    let data;
@@ -135,17 +135,17 @@ async function requestPow(signedP2PoWJSON) {
  *  Checks if fee is less or equal MAX_FEE
  */
 function verifyFee(fee) {
-   // If worker fee is greater than MAX_FEE then return true
+   // Boolean: If worker fee is greater than MAX_FEE then return true
    // result fee > MAX_FEE
    let result;
 
    try {
       //nanojs_compare(bigNumberA, bigNumberB, bigNumbersType, condition)
       result = NANOJS.nanojs_compare(
-         fee,
-         MAX_FEE,
-         NANOJS.NANO_BIG_NUMBER_TYPE.NANO_A_RAW_STRING + NANOJS.NANO_BIG_NUMBER_TYPE.NANO_B_REAL_STRING,
-         NANOJS.NANO_BIG_NUMBER_CONDITIONAL.NANO_COMPARE_GT
+         fee, // fee in big number raw string
+         MAX_FEE, // MAX_FEE in big number real string
+         NANOJS.NANO_BIG_NUMBER_TYPE.NANO_A_RAW_STRING + NANOJS.NANO_BIG_NUMBER_TYPE.NANO_B_REAL_STRING, // Big numbers types
+         NANOJS.NANO_BIG_NUMBER_CONDITIONAL.NANO_COMPARE_GT // Condition = fee > MAX_FEE
       );
    } catch (e) {
       console.log(`Error in Big Number nanojs_compare "${e.message}"`);
@@ -156,12 +156,12 @@ function verifyFee(fee) {
 }
 
 async function main() {
-   let p2pow_info,
-       conditional,
-       nano_block,
-       p2pow_block,
-       signed_p2pow_block,
-       signed_p2pow_JSON;
+   let p2pow_info,         // Information about worker
+       conditional,        // fee conditional
+       nano_block,         // Nano block  (ArrayBuffer)
+       p2pow_block,        // P2PoW block (ArrayBuffer)
+       signed_p2pow_block, // Signed P2PoW block (ArrayBuffer)
+       signed_p2pow_JSON;  // Signed P2PoW block (JSON)
 
    console.log("Getting P2PoW info ...");
    p2pow_info = await getP2POWInfo().catch((reject) => p2pow_info = reject);
@@ -212,7 +212,7 @@ async function main() {
          nano_block, // Nano block
          p2pow_info.reward_account, // reward account wallet
          null,//worker_representative.representative null=worker representative is the same account representarive
-         p2pow_info.fee, // fee
+         p2pow_info.fee, // fee in raw
          NANOJS.NANO_BIG_NUMBER_TYPE.WORKER_FEE_RAW // Big number fee type: Raw string
       );
    } catch (e) {

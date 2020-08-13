@@ -6,6 +6,9 @@
 /*
  * Peer 2 PoW Proof of Concept
  * This example shows how to send/receive Nano using myNanoJS with P2PoW API
+ * References:
+ *    1- https://medium.com/@kaiquenunes/delegated-proof-of-work-d566870924d9
+ *    2- https://github.com/anarkrypto/delegated-PoW-API
  *
  *
  * CAUTION:

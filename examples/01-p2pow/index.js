@@ -163,6 +163,7 @@ async function main() {
        signed_p2pow_block, // Signed P2PoW block (ArrayBuffer)
        signed_p2pow_JSON;  // Signed P2PoW block (JSON)
 
+   // 1- Getting P2PoW info ...
    console.log("Getting P2PoW info ...");
    p2pow_info = await getP2POWInfo().catch((reject) => p2pow_info = reject);
 
@@ -171,6 +172,7 @@ async function main() {
       return;
    }
 
+   // 2- Check if worker fee has an allowed FEE (fee <= MAX_FEE)
    console.log("Verifying P2PoW fee ...");
    conditional = verifyFee(p2pow_info.fee);
    
@@ -185,6 +187,7 @@ async function main() {
    console.log(`Fee allowed. Max allowed fee is ${MAX_FEE}`);
    console.log("Creating Nano block ...");
 
+   // 3- Creating Nano block (account, frontier, balance, value to send/receive, destination or link)
    try {
       nano_block = NANOJS.nanojs_create_block(
          ACCOUNT, //Your Nano account
@@ -207,11 +210,12 @@ async function main() {
    console.log(Buffer.from(nano_block).toString('hex'));
    console.log("Creating P2PoW block ...");
 
+   // 4- Creating P2PoW block (Adding Nano block and reward account + worker fee)
    try {
       p2pow_block = NANOJS.nanojs_block_to_p2pow(
          nano_block, // Nano block
          p2pow_info.reward_account, // reward account wallet
-         null,//worker_representative.representative null=worker representative is the same account representarive
+         null,//worker_representative.representative. If null, worker representative is the same account representarive
          p2pow_info.fee, // fee in raw
          NANOJS.NANO_BIG_NUMBER_TYPE.WORKER_FEE_RAW // Big number fee type: Raw string
       );
@@ -224,8 +228,8 @@ async function main() {
    console.log(Buffer.from(p2pow_block).toString('hex'));
    console.log("Now sign P2PoW block ...");
 
+   // 5- Signing P2PoW block with associated private key account
    try {
-      // Signing P2PoW block ...
       signed_p2pow_block = NANOJS.nanojs_sign_p2pow_block(p2pow_block, EXTENDED_PRIVATE_KEY);
    } catch (e) {
       console.log(`Error when signing P2PoW block: ${(e.code)?(e.code):-1} ${e.message}`);
@@ -236,8 +240,8 @@ async function main() {
    console.log(Buffer.from(signed_p2pow_block).toString('hex'));
    console.log("Now parsing P2PoW block to JSON (signed)...");
 
+   // 6- Parsing signed P2PoW block to JSON
    try {
-      // Parsing signed P2PoW block to JSON
       signed_p2pow_JSON = NANOJS.nanojs_p2pow_block_to_JSON(signed_p2pow_block);
    } catch (e) {
       console.log(`Error when parsing P2PoW block to JSON: ${(e.code)?(e.code):-1} ${e.message}`);
@@ -248,7 +252,8 @@ async function main() {
    console.log(signed_p2pow_JSON);
 
    console.log("Sending signed P2PoW signed block JSON to worker ...");
-   // Requesting work to store in Nano blockchain
+
+   // 7- Requesting work to store in Nano blockchain
    requestPow(signed_p2pow_JSON).then(
       (res) => console.log(res),
       (err) => console.log(err)

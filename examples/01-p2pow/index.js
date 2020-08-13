@@ -42,11 +42,11 @@
 const NANOJS = require('../utils/mynanojs');
 const axios = require('axios');
 
-const P2POW_SRV = "YOUR_P2POW_SERVICE_HERE";
+const P2POW_SRV = "YOUR_P2POW_SERVER_HERE";
 const P2POW_PORT = "7090";
 
 const p2pow_api = axios.create({
-   baseURL: `${SERVICES.P2POW_SRV}:${P2POW_PORT}`,
+   baseURL: `${P2POW_SRV}:${P2POW_PORT}`,
    headers:  {
                  'Content-Type': 'application/json'
              },
@@ -86,15 +86,15 @@ const EXTENDED_PRIVATE_KEY = `${KEY_PAIR.private_key}${KEY_PAIR.public_key}`;
 const ACCOUNT = KEY_PAIR.wallet;
 
 // Previous block. Empty string means first transaction
-const PREVIOUS = '2A76F2BA48A2FDF7F47C5ACBBDEF3DCDFD6A11D58964A75FD24D61CD60BC9027';
+const PREVIOUS = '0D69AC75AC25B977C4525C6BBD3270CDF4F97A91570B82217366501C0E008010';
 
-const BALANCE = '0.0019'; // Current balance in this account in real string
-const VALUE_TO_SEND_OR_RECEIVE = '0.0018'; // Value to receive (open block) or value do send in real string
+const BALANCE = '0'; // Current balance in this account in real string
+const VALUE_TO_SEND_OR_RECEIVE = '0.9999'; // Value to receive (open block) or value do send in real string
 const REPRESENTATIVE = "nano_3ngt59dc7hbsjd1dum1bw9wbb87mbtuj4qkwcruididsb5rhgdt9zb4w7kb9"; // Account representative
 
 // Destination wallet or link: Your destination wallet to send Nano or link to receive Nano
-const DESTINATION_WALLET_OR_LINK = "nano_1fxuu796gedchbroruccmehk6fdxbnz5y5eunhytdqrne1zg5qfcfhphiyey";
-//const DESTINATION_WALLET_OR_LINK = '8D2A639808E900DE1AA09522CFD045B3B089A934B650FA891F8E110A94AD65DA';
+//const DESTINATION_WALLET_OR_LINK = "nano_1fxuu796gedchbroruccmehk6fdxbnz5y5eunhytdqrne1zg5qfcfhphiyey";
+const DESTINATION_WALLET_OR_LINK = 'D3E2955A1FE390057F745177FAD584A3A3350F20363338050A1391A71CBF5606';
 const MAX_FEE = "0.0001"; // Maximun allowed fee
 
 // Result of this transaction in Nano Blockchain (nano_36iwu6i3zp9ges1km1fm6i5gxp1kssi6acboe4g3jhefmb6qendbae7kt1jd):
@@ -118,7 +118,7 @@ async function getP2POWInfo() {
 }
 
 /*
- * Request work information (worker fee, worker wallet
+ * Request work information (worker fee, worker wallet)
  */
 async function requestPow(signedP2PoWJSON) {
    let data;
@@ -187,6 +187,11 @@ async function main() {
       return;
    }
 
+   try {
+      console.log(`Worker fee is ${NANOJS.nanojs_convert_balance(p2pow_info.fee)}`);
+   } catch (e) {
+      console.log(`Error when converting RAW->REAL: ${(e.code)?(e.code):-1} ${e.message}`);
+   }
    console.log(`Fee allowed. Max allowed fee is ${MAX_FEE}`);
    console.log("Creating Nano block ...");
 

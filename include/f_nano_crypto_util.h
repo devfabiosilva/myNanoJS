@@ -6,7 +6,8 @@
 */
 
 #include <stdint.h>
-#include "f_util.h"
+#include <f_util.h>
+#include <f_bitcoin.h>
 
 #ifndef F_DOC_SKIP
 
@@ -1025,9 +1026,7 @@ F_FILE_INFO_ERR f_set_nano_file_info(F_NANO_WALLET_INFO *, int);
  *     <br/><br/>Output type:
  *     - <i>F_NANO_COMPARE_EQ</i> If <i>valA</i> is greater than <i>valB</i>
  *     - <i>F_NANO_COMPARE_LT</i> if <i>valA</i> is lesser than <i>valB</i>
- *     - <i>F_NANO_COMPARE_LEQ</i> if <i>valA</i> is lesser or equal than <i>valB</i>
  *     - <i>F_NANO_COMPARE_GT</i> if <i>valA</i> is greater than <i>valB</i>
- *     - <i>F_NANO_COMPARE_GEQ</i> If <i>valA</i> is greater or equal than <i>valB</i>
  *
  * @retval NANO_ERR_OK: If Success, otherwise f_nano_err_t enum type error
  * @see f_nano_err_t for f_nano_err enum error type
@@ -1392,9 +1391,18 @@ int f_sign_data(
  *
  * @see f_sign_data()
  */
-int f_verify_signed_data( const unsigned char *signature, const unsigned char *message, size_t message_len, const void *public_key, uint32_t pk_type);
+int f_verify_signed_data( const unsigned char *, const unsigned char *, size_t, const void *, uint32_t);
 
-int f_is_valid_nano_seed_encrypted(void *stream, size_t stream_len, int read_from);
+/**
+ * @fn int f_is_valid_nano_seed_encrypted(void *stream, size_t stream_len, int read_from)
+ * @brief Verifies if ecrypted Nano SEED is valid
+ * @param [in] stream Encrypted binary data block coming from memory or file
+ * @param [in] stream_len size of <i>stream</i> data
+ * @param [in] read_from Source <i>READ_SEED_FROM_STREAM</i> if encrypted binary data is in memory or <i>READ_SEED_FROM_FILE</i> is in a file.
+ *
+ * @retval 0: If invalid, greater than zero if is valid or error if less than zero.
+ */
+int f_is_valid_nano_seed_encrypted(void *, size_t, int);
 
 #ifndef F_ESP32
 

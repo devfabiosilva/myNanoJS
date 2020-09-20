@@ -160,3 +160,7 @@ int mynanojs_add_uint32_constant_util(napi_env, napi_value, void *);
 int mynanojs_add_uint64_constant_util(napi_env, napi_value, void *);
 int mynanojs_add_init_property(const char *, napi_env, napi_value, attr_fn, void *);
 
+
+// Bitcoin utility
+napi_value bitcoin_private_key_to_wif(napi_env env, napi_callback_info info);
+

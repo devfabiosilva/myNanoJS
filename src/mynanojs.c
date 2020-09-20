@@ -1060,13 +1060,15 @@ napi_value nanojs_public_key_to_wallet(napi_env env, napi_callback_info info)
       if (sz_tmp!=64) {
          sprintf(_buf, "%lu", (unsigned long int)sz_tmp);
          sprintf(p, "Wrong hex public key size %s", _buf);
-         napi_throw_error(env, _buf, p);
+         //napi_throw_error(env, _buf, p);
+         napi_throw_error(env, "600", p);
          return NULL;
       }
 
       p[64]=0;
 
-      if ((err=f_str_to_hex((uint8_t *)_buf, p))) {
+      //if ((err=f_str_to_hex((uint8_t *)_buf, p))) {
+      if (f_str_to_hex((uint8_t *)_buf, p)) {
          napi_throw_error(env, "181", "Can't convert hex string public key to hex binary public key");
          return NULL;
       }
@@ -3122,6 +3124,11 @@ MY_NANO_JS_CONST_UINT32_T NANO_UINT32_BIG_NUMBER_CONDITIONAL_CONST[] = {
 
 };
 
+MY_NANO_JS_FUNCTION BITCOIN_JS_FUNCTIONS[] = {
+   {"bitcoin_private_key_to_wif", bitcoin_private_key_to_wif},
+   {NULL, NULL}
+};
+
 napi_value Init(napi_env env, napi_value exports)
 {
    int err;
@@ -3186,6 +3193,13 @@ napi_value Init(napi_env env, napi_value exports)
    if ((err=mynanojs_add_init_property("ENTROPY_TYPE", env, exports, mynanojs_add_uint32_constant_util, (void *)NANO_UINT32_ENTROPY_CONST))) {
       sprintf(_buf, "%d", err);
       sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_init_property @ ENTROPY_TYPE", _buf);
+      napi_throw_error(env, _buf, _buf+128);
+      return NULL;
+   }
+
+   if ((err=mynanojs_add_init_property("BITCOIN_UTILITIES", env, exports, mynanojs_add_nano_function_util, (void *)BITCOIN_JS_FUNCTIONS))) {
+      sprintf(_buf, "%d", err);
+      sprintf(_buf+128, NANOJS_NAPI_INIT_ERROR, "mynanojs_add_init_property @ BITCOIN_UTILITIES", _buf);
       napi_throw_error(env, _buf, _buf+128);
       return NULL;
    }

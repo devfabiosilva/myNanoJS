@@ -37,7 +37,7 @@ napi_value bitcoin_private_key_to_wif(napi_env env, napi_callback_info info)
    }
 
    if (napi_get_value_string_utf8(env, argv[0], _buf, 65+1, &sz_tmp)!=napi_ok) {
-      napi_throw_error(env, "2010", "Can't Bitcoin hex string private key"); //In May 2010 1 BTC = 0.01 USD
+      napi_throw_error(env, "2010", "Can't parse Bitcoin hex string to private key"); //In May 2010 1 BTC = 0.01 USD
       return NULL;
    }
 
@@ -69,6 +69,54 @@ napi_value bitcoin_private_key_to_wif(napi_env env, napi_callback_info info)
    }
 
 bitcoin_private_key_to_wif_EXIT1:
+   memory_flush();
+   return res;
+}
+
+napi_value bitcoin_wif_to_private_key(napi_env env, napi_callback_info info)
+{
+   int err;
+   napi_value argv[1], res;
+   size_t argc=1, sz_tmp;
+   uint32_t wif_type;
+   char *p;
+
+// wif: string
+
+   if (napi_get_cb_info(env, info, &argc, &argv[0], NULL, NULL)!=napi_ok) {
+      napi_throw_error(env, PARSE_ERROR, CANT_PARSE_JAVASCRIPT_ARGS);
+      return NULL;
+   }
+
+   if (argc<1) {
+      napi_throw_error(env, NULL, "Missing: Bitcoin WIF");
+      return NULL;
+   }
+
+   if (argc>1) {
+      napi_throw_error(env, NULL, ERROR_TOO_MANY_ARGUMENTS);
+      return NULL;
+   }
+
+   if (napi_get_value_string_utf8(env, argv[0], _buf, sizeof(_buf)>>1, &sz_tmp)!=napi_ok) {
+      napi_throw_error(env, "2015", "Can't parse WIF to buffer");
+      return NULL;
+   }
+
+   _buf[sz_tmp]=0;
+   res=NULL;
+
+   if (f_wif_to_private_key((uint8_t *)(p=&_buf[sizeof(_buf)>>1]), NULL, (const char *)_buf)) {
+      napi_throw_error(env, "2016", "Can't convert WIF to private key");
+      goto bitcoin_wif_to_private_key_EXIT1;
+   }
+
+   if (napi_create_string_utf8(env, (const char *)fhex2strv2(_buf, (const void *)p, 32, 1), 64, &res)!=napi_ok) {
+      napi_throw_error(env, "2017", "Unable to parse Bitcoin private key conversion to JavaScript");
+      res=NULL;
+   }
+
+bitcoin_wif_to_private_key_EXIT1:
    memory_flush();
    return res;
 }

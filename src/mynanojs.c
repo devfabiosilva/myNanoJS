@@ -3126,6 +3126,7 @@ MY_NANO_JS_CONST_UINT32_T NANO_UINT32_BIG_NUMBER_CONDITIONAL_CONST[] = {
 
 MY_NANO_JS_FUNCTION BITCOIN_JS_FUNCTIONS[] = {
    {"bitcoin_private_key_to_wif", bitcoin_private_key_to_wif},
+   {"bitcoin_wif_to_private_key", bitcoin_wif_to_private_key},
    {NULL, NULL}
 };
 

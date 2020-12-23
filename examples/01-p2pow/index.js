@@ -42,7 +42,7 @@
 const NANOJS = require('../utils/mynanojs');
 const axios = require('axios');
 
-const P2POW_SRV = "YOUR_P2POW_SERVER_HERE";
+const P2POW_SRV = "http://157.245.80.20";//"YOUR_P2POW_SERVER_HERE";
 const P2POW_PORT = "7090";
 
 const p2pow_api = axios.create({

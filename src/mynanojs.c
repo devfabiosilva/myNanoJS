@@ -523,6 +523,16 @@ napi_value nanojs_create_block(napi_env env, napi_callback_info info)
       return NULL;
    }
 
+   if (type_tmp&(~(VALUE_TO_SEND|VALUE_TO_RECEIVE))) {
+      napi_throw_error(env, "607", "Wrong direction");
+      return NULL;
+   }
+
+   if (type_tmp==(VALUE_TO_SEND|VALUE_TO_RECEIVE)) {
+      napi_throw_error(env, "608", "Conflicting direction");
+      return NULL;
+   }
+
    type|=type_tmp;
 
    //if (memcmp(nano_block.account, nano_block.previous, 32)==0) {
